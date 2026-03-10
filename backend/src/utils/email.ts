@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 interface SendEmailOptions {
     to: string;
@@ -7,55 +8,63 @@ interface SendEmailOptions {
 }
 
 /**
- * Send an email using SMTP credentials from environment variables.
- * Falls back to logging the email content to the terminal when SMTP is not configured.
+ * Send an email.
+ *
+ * Priority:
+ *   1. Resend API  (set RESEND_API_KEY) — works on all cloud providers, recommended for production
+ *   2. SMTP        (set SMTP_HOST + SMTP_USER + SMTP_PASS) — works locally / self-hosted
+ *   3. Console log — dev fallback when neither is configured
  */
 export const sendEmail = async ({ to, subject, html }: SendEmailOptions): Promise<void> => {
-    const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, FROM_EMAIL, FROM_NAME } = process.env;
+    const { RESEND_API_KEY, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, FROM_EMAIL, FROM_NAME } = process.env;
 
-    // If SMTP is not configured, fall back to console output (dev mode)
-    if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-        console.log('\n[EMAIL - no SMTP configured, printing to terminal]');
-        console.log(`  To:      ${to}`);
-        console.log(`  Subject: ${subject}`);
-        console.log(`  Body:\n${html.replace(/<[^>]+>/g, '')}\n`);
+    const fromName = FROM_NAME || 'MediCare';
+    const fromEmail = FROM_EMAIL || SMTP_USER || 'noreply@medicare.app';
+    const from = `${fromName} <${fromEmail}>`;
+
+    // ── 1. Resend (preferred for production) ─────────────────────────────────
+    if (RESEND_API_KEY) {
+        const resend = new Resend(RESEND_API_KEY);
+        const { error } = await resend.emails.send({ from, to, subject, html });
+        if (error) {
+            console.error('[EMAIL] Resend error:', error);
+            throw new Error(error.message);
+        }
+        console.log(`[EMAIL] Sent via Resend to ${to}`);
         return;
     }
 
-    const port = Number(SMTP_PORT) || 465;
-    const secure = port === 465;
+    // ── 2. SMTP (works locally, blocked by most cloud providers for Gmail) ───
+    if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
+        const port = Number(SMTP_PORT) || 465;
+        const secure = port === 465;
 
-    console.log(`[EMAIL] Attempting to send to ${to} via ${SMTP_HOST}:${port} (secure=${secure})`);
+        console.log(`[EMAIL] Attempting SMTP to ${to} via ${SMTP_HOST}:${port}`);
 
-    const transporter = nodemailer.createTransport({
-        host: SMTP_HOST,
-        port,
-        secure,
-        auth: {
-            user: SMTP_USER,
-            pass: SMTP_PASS,
-        },
-        tls: {
-            // Required on some cloud hosts where the TLS cert chain isn't fully trusted
-            rejectUnauthorized: false,
-        },
-        connectionTimeout: 10_000,
-        greetingTimeout:   8_000,
-        socketTimeout:     15_000,
-    });
-
-    try {
-        const info = await transporter.sendMail({
-            from: `"${FROM_NAME || 'MediCare'}" <${FROM_EMAIL || SMTP_USER}>`,
-            to,
-            subject,
-            html,
+        const transporter = nodemailer.createTransport({
+            host: SMTP_HOST,
+            port,
+            secure,
+            auth: { user: SMTP_USER, pass: SMTP_PASS },
+            tls: { rejectUnauthorized: false },
+            connectionTimeout: 10_000,
+            greetingTimeout:   8_000,
+            socketTimeout:     15_000,
         });
-        console.log(`[EMAIL] Sent successfully. MessageId: ${info.messageId}`);
-    } catch (err: any) {
-        // Log the full error so it appears in Render/Railway logs
-        console.error('[EMAIL] Send failed:', err.message);
-        console.error('[EMAIL] SMTP config — host:', SMTP_HOST, 'port:', port, 'user:', SMTP_USER);
-        throw err; // Re-throw so the controller can return a proper 500
+
+        try {
+            const info = await transporter.sendMail({ from, to, subject, html });
+            console.log(`[EMAIL] Sent via SMTP. MessageId: ${info.messageId}`);
+        } catch (err: any) {
+            console.error('[EMAIL] SMTP failed:', err.message);
+            throw err;
+        }
+        return;
     }
+
+    // ── 3. Dev fallback ───────────────────────────────────────────────────────
+    console.log('\n[EMAIL - no provider configured, printing to terminal]');
+    console.log(`  To:      ${to}`);
+    console.log(`  Subject: ${subject}`);
+    console.log(`  Body:\n${html.replace(/<[^>]+>/g, '')}\n`);
 };

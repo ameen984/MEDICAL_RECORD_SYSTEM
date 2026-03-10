@@ -49,9 +49,6 @@ export default function ForgotPassword() {
                                     We've sent password reset instructions to <strong>{email}</strong>
                                 </p>
                             </div>
-                            <p className="text-xs text-gray-400 mt-4 italic">
-                                Note: For local development, check your terminal for the simulated token link!
-                            </p>
                             <Link to="/login" className="mt-6 w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
                                 Return to login
                             </Link>

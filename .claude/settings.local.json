@@ -12,7 +12,9 @@
       "Bash(ls -la c:/Users/alame/Desktop/atnigravity/medical-record-system/backend/*.js c:/Users/alame/Desktop/atnigravity/medical-record-system/backend/*.mjs)",
       "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"feat: add server-side logout, notification persistence, and fix email timeout\")",
       "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"fix: use SMTP port 465 for production \\(Render blocks 587\\)\")",
-      "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"fix: add TLS rejectUnauthorized, detailed SMTP error logging\")"
+      "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"fix: add TLS rejectUnauthorized, detailed SMTP error logging\")",
+      "Bash(npm install resend --save)",
+      "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"fix: add Resend email provider to fix Gmail SMTP blocking on cloud hosts\")"
     ]
   }
 }
