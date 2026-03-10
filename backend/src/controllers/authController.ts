@@ -621,12 +621,27 @@ export const googleAuth = async (req: AuthRequest, res: Response) => {
 // @access  Public
 export const sendEmailOtp = async (req: AuthRequest, res: Response) => {
     try {
-        const { email } = req.body;
+        const { email, name } = req.body;
         if (!email) return res.status(400).json({ success: false, message: 'Email address required' });
 
-        const user = await User.findOne({ email: email.toLowerCase().trim() });
+        const normalizedEmail = email.toLowerCase().trim();
+        let user = await User.findOne({ email: normalizedEmail });
+
         if (!user) {
-            return res.status(404).json({ success: false, message: 'No account found with this email. Please register first.' });
+            if (!name || !name.trim()) {
+                // Login context — user must already exist
+                return res.status(404).json({ success: false, message: 'No account found with this email. Please register first.' });
+            }
+            // Signup context — create account, then send OTP
+            user = await User.create({ name: name.trim(), email: normalizedEmail, role: 'patient' });
+            await Patient.create({ userId: user._id });
+            await createActivityLog({
+                user: user._id,
+                userName: user.name,
+                hospitalId: null,
+                action: 'SIGNUP',
+                details: `New patient account created via Email OTP: ${normalizedEmail}`,
+            });
         }
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();

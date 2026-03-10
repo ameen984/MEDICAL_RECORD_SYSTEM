@@ -25,7 +25,8 @@
       "Bash(bash /c/Users/alame/.claude/skills/git-pushing/scripts/smart_commit.sh \"fix: enforce hospital scope in updateUserRole for admin users\")",
       "Bash(bash /c/Users/alame/.claude/skills/git-pushing/scripts/smart_commit.sh \"fix: hide Edit/Delete buttons for admin and super_admin rows in UserList\")",
       "Bash(bash skills/git-pushing/scripts/smart_commit.sh \"feat: role-based audit log scoping, email OTP auth, admin UI restrictions\")",
-      "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"feat: role-based audit log scoping, email OTP auth, admin UI restrictions\")"
+      "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"feat: role-based audit log scoping, email OTP auth, admin UI restrictions\")",
+      "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"fix: email OTP signup flow and Google OAuth client ID config\")"
     ]
   }
 }

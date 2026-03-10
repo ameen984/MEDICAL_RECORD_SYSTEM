@@ -49,7 +49,7 @@ export const authApi = apiSlice.injectEndpoints({
             transformResponse: (res: any) => res.data,
         }),
         sendEmailOtp: builder.mutation({
-            query: (email: string) => ({ url: '/auth/email/send-otp', method: 'POST', body: { email } }),
+            query: ({ email, name }: { email: string; name?: string }) => ({ url: '/auth/email/send-otp', method: 'POST', body: { email, name } }),
         }),
         verifyEmailOtp: builder.mutation({
             query: ({ email, otp }: { email: string; otp: string }) => ({

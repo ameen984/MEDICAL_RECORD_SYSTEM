@@ -67,8 +67,8 @@ const SignupPage = () => {
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault(); clearError();
     if (!otpName.trim()) { setErrorMsg('Please enter your full name.'); return; }
-    try { await sendOtp(otpEmail).unwrap(); setOtpSent(true); }
-    catch (err: any) { setErrorMsg(err?.data?.message || 'Failed to send OTP. Make sure this email is registered.'); }
+    try { await sendOtp({ email: otpEmail, name: otpName.trim() }).unwrap(); setOtpSent(true); }
+    catch (err: any) { setErrorMsg(err?.data?.message || 'Failed to send OTP. Please try again.'); }
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {

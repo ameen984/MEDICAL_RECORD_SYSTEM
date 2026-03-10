@@ -56,7 +56,7 @@ const LoginPage = () => {
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault(); clearError();
-    try { await sendOtp(otpEmail).unwrap(); setOtpSent(true); }
+    try { await sendOtp({ email: otpEmail }).unwrap(); setOtpSent(true); }
     catch (err: any) { setErrorMsg(err?.data?.message || 'Failed to send OTP. Make sure this email is registered.'); }
   };
 
