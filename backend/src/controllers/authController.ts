@@ -1,6 +1,5 @@
 import { Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { OAuth2Client } from 'google-auth-library';
 import twilio from 'twilio';
 import User from '../models/User';
 import Patient from '../models/Patient';
@@ -520,28 +519,26 @@ export const logoutUser = async (req: AuthRequest, res: Response) => {
 // Google OAuth
 // ─────────────────────────────────────────────────────────────────────────────
 
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
-// @desc    Sign in / sign up with Google ID token
+// @desc    Sign in / sign up with Google access token
 // @route   POST /api/auth/google
 // @access  Public
 export const googleAuth = async (req: AuthRequest, res: Response) => {
     try {
-        const { idToken } = req.body;
-        if (!idToken) return res.status(400).json({ success: false, message: 'Google ID token required' });
+        const { idToken } = req.body; // idToken is actually an access_token from useGoogleLogin
+        if (!idToken) return res.status(400).json({ success: false, message: 'Google token required' });
 
-        if (!process.env.GOOGLE_CLIENT_ID) {
-            return res.status(500).json({ success: false, message: 'Google OAuth not configured on this server' });
-        }
-
-        const ticket = await googleClient.verifyIdToken({
-            idToken,
-            audience: process.env.GOOGLE_CLIENT_ID,
+        // Fetch user info from Google using the access token
+        const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${idToken}` },
         });
 
-        const payload = ticket.getPayload();
-        if (!payload || !payload.email) {
+        if (!googleRes.ok) {
             return res.status(400).json({ success: false, message: 'Invalid Google token' });
+        }
+
+        const payload = await googleRes.json() as { sub: string; email: string; name: string; email_verified: boolean };
+        if (!payload.email) {
+            return res.status(400).json({ success: false, message: 'Could not retrieve email from Google' });
         }
 
         const { sub: googleId, email, name, email_verified } = payload;
