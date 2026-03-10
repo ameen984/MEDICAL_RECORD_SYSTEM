@@ -81,18 +81,18 @@ export default function DoctorDashboard() {
             <div className="relative overflow-hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary-50 rounded-full -mr-20 -mt-20 opacity-50 blur-3xl"></div>
                 <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-50 rounded-full -ml-10 -mb-10 opacity-30 blur-2xl"></div>
-                <div className="relative z-10 flex items-center gap-5">
-                    <div className="h-16 w-16 rounded-2xl bg-primary-100 flex items-center justify-center text-primary-600 font-extrabold text-2xl shadow-inner">
+                <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5">
+                    <div className="h-16 w-16 shrink-0 z-10 rounded-2xl bg-primary-100 flex items-center justify-center text-primary-600 font-extrabold text-2xl shadow-inner">
                         {user?.name?.charAt(0) || 'D'}
                     </div>
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">Dr. {user?.name}</h2>
+                    <div className="z-10">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Dr. {user?.name}</h2>
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-primary-50 text-primary-600 border border-primary-100">
                                 Physician
                             </span>
                         </div>
-                        <p className="mt-2 text-lg text-gray-500 max-w-md">
+                        <p className="mt-2 text-sm sm:text-lg text-gray-500 max-w-md">
                             Clinical Command Center: Practice overview and risk management.
                         </p>
                     </div>
