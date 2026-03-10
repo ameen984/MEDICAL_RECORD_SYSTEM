@@ -15,6 +15,8 @@ export interface IPatient extends Document {
         alcohol: 'Yes' | 'No' | 'Occasional' | 'Former';
     };
     chronicConditions?: string;
+    sharingPreference?: 'global' | 'explicit';
+    approvedHospitals?: mongoose.Types.ObjectId[];
 }
 
 const patientSchema = new Schema<IPatient>({
@@ -58,6 +60,15 @@ const patientSchema = new Schema<IPatient>({
         type: String, // e.g., "Diabetes, Hypertension"
         default: 'None',
     },
+    sharingPreference: {
+        type: String,
+        enum: ['global', 'explicit'],
+        default: 'global',
+    },
+    approvedHospitals: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Hospital',
+    }],
 }, {
     timestamps: true,
 });

@@ -9,10 +9,38 @@ import UploadReportModal from './UploadReportModal';
 import { Plus } from 'lucide-react';
 
 export default function MyReports() {
-    const { user } = useSelector((state: RootState) => state.auth);
+    const { user, token } = useSelector((state: RootState) => state.auth);
     const { data: reports, isLoading } = useGetReportsQuery({ patientId: user?.id });
     const [filterType, setFilterType] = useState<string>('');
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    const [isDownloading, setIsDownloading] = useState<string | null>(null);
+
+    const handleDownload = async (reportId: string, fileName: string) => {
+        try {
+            setIsDownloading(reportId);
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/reports/${reportId}/download`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            if (!response.ok) throw new Error('Download failed');
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Failed to download report', error);
+            alert('Failed to download report');
+        } finally {
+            setIsDownloading(null);
+        }
+    };
 
     if (isLoading) {
         return <Loader />;
@@ -89,16 +117,29 @@ export default function MyReports() {
                                             </p>
                                         </div>
                                     </div>
-                                    <button className="ml-2 p-1.5 text-gray-400 hover:text-primary-600 transition-colors opacity-0 group-hover:opacity-100">
-                                        <Download className="h-4 w-4" />
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownload(report.id, report.fileName);
+                                        }}
+                                        disabled={isDownloading === report.id}
+                                        className="ml-2 p-1.5 text-gray-400 hover:text-primary-600 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                                        title="Download Report"
+                                    >
+                                        <Download className={`h-4 w-4 ${isDownloading === report.id ? 'animate-pulse' : ''}`} />
                                     </button>
                                 </div>
                                 
                                 <div className="mt-3 pt-3 border-t border-gray-100">
-                                    <p className="text-xs text-gray-500">
-                                        Uploaded by: {(report as any).uploadedBy?.name || (report as any).doctorName || 'Unknown'}
-                                    </p>
-                                    <p className="text-xs text-gray-400 truncate mt-1">{report.fileName}</p>
+                                    <div className="flex flex-col space-y-1">
+                                        <p className="text-xs text-gray-500">
+                                            <span className="font-medium">Uploaded by:</span> {report.uploadedBy?.name || report.doctorName || 'Unknown'}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                            <span className="font-medium">Facility:</span> {report.hospitalId?.name || report.hospitalName || 'Unknown Facility'}
+                                        </p>
+                                    </div>
+                                    <p className="text-xs text-gray-400 truncate mt-2">{report.fileName}</p>
                                 </div>
                             </div>
                         ))}

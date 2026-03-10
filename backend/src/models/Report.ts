@@ -9,6 +9,8 @@ export interface IReport extends Document {
     title: string;
     fileName: string;
     filePath: string;
+    cloudinaryId?: string;
+    hospitalId?: mongoose.Types.ObjectId;
     uploadDate: Date;
 }
 
@@ -17,6 +19,7 @@ const reportSchema = new Schema<IReport>({
         type: Schema.Types.ObjectId,
         ref: 'User',
         required: true,
+        index: true,
     },
     doctorId: {
         type: Schema.Types.ObjectId,
@@ -27,6 +30,7 @@ const reportSchema = new Schema<IReport>({
         type: Schema.Types.ObjectId,
         ref: 'User',
         required: true, // Track who uploaded it
+        index: true,
     },
     recordId: {
         type: Schema.Types.ObjectId,
@@ -49,14 +53,21 @@ const reportSchema = new Schema<IReport>({
         type: String,
         required: true,
     },
+    cloudinaryId: {
+        type: String,
+        required: false,
+    },
+    hospitalId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Hospital',
+    },
     uploadDate: {
         type: Date,
         default: Date.now,
     },
 });
 
-// Indexes
-reportSchema.index({ patientId: 1 });
+// Indexes (patientId indexed inline above; doctorId and type indexed here)
 reportSchema.index({ doctorId: 1 });
 reportSchema.index({ type: 1 });
 

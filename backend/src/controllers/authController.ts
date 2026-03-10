@@ -3,10 +3,20 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import Patient from '../models/Patient';
 import { AuthRequest } from '../middleware/auth';
+import { createActivityLog } from './activityController';
+import { sendEmail } from '../utils/email';
+import crypto from 'crypto';
+import speakeasy from 'speakeasy';
+import qrcode from 'qrcode';
+
+// Startup guard — fail fast if JWT_SECRET is missing
+if (!process.env.JWT_SECRET) {
+    throw new Error('FATAL: JWT_SECRET environment variable is not set');
+}
 
 // Generate JWT Token
 const generateToken = (id: string): string => {
-    return jwt.sign({ id }, process.env.JWT_SECRET || 'secret', {
+    return jwt.sign({ id }, process.env.JWT_SECRET!, {
         expiresIn: (process.env.JWT_EXPIRE || '24h') as any,
     });
 };
@@ -18,12 +28,23 @@ export const register = async (req: AuthRequest, res: Response) => {
     try {
         const { name, email, password, role, phone } = req.body;
 
-        // Check if user exists
-        const userExists = await User.findOne({ email });
+        if (!email && !phone) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide either an email or a phone number',
+            });
+        }
+
+        // Check if user exists by email OR phone
+        const query = [];
+        if (email) query.push({ email });
+        if (phone) query.push({ phone });
+
+        const userExists = await User.findOne({ $or: query });
         if (userExists) {
             return res.status(400).json({
                 success: false,
-                message: 'User already exists with this email',
+                message: 'User already exists with this email or phone number',
             });
         }
 
@@ -43,6 +64,15 @@ export const register = async (req: AuthRequest, res: Response) => {
 
         const token = generateToken(user._id.toString());
 
+        // Log signup
+        await createActivityLog({
+            user: user._id,
+            userName: user.name,
+            hospitalId: user.hospitalIds?.[0] || null,
+            action: 'SIGNUP',
+            details: `New ${user.role} account created: ${user.email || user.phone}`
+        });
+
         res.status(201).json({
             success: true,
             data: {
@@ -52,6 +82,8 @@ export const register = async (req: AuthRequest, res: Response) => {
                     email: user.email,
                     role: user.role,
                     phone: user.phone,
+                    hospitalIds: user.hospitalIds,
+                    isMfaEnabled: user.isMfaEnabled,
                 },
                 token,
             },
@@ -69,18 +101,20 @@ export const register = async (req: AuthRequest, res: Response) => {
 // @access  Public
 export const login = async (req: AuthRequest, res: Response) => {
     try {
-        const { email, password } = req.body;
+        const { identifier, password } = req.body; // Can be email or phone
 
-        // Validate email & password
-        if (!email || !password) {
+        // Validate identifier & password
+        if (!identifier || !password) {
             return res.status(400).json({
                 success: false,
-                message: 'Please provide an email and password',
+                message: 'Please provide an email or phone number and password',
             });
         }
 
-        // Check for user (include password for comparison)
-        const user = await User.findOne({ email }).select('+password');
+        // Check for user by email OR phone
+        const user = await User.findOne({
+            $or: [{ email: identifier }, { phone: identifier }]
+        }).select('+password');
 
         if (!user) {
             return res.status(401).json({
@@ -99,7 +133,44 @@ export const login = async (req: AuthRequest, res: Response) => {
             });
         }
 
+        // --- MFA Check ---
+        if (user.isMfaEnabled && user.mfaSecret) {
+            const { mfaToken } = req.body;
+            if (!mfaToken) {
+                return res.status(200).json({
+                    success: true,
+                    requiresMfa: true,
+                    message: 'MFA token required',
+                    data: { userId: user._id, requiresMfa: true }
+                });
+            } else {
+                const speakeasy = require('speakeasy');
+                const isVerified = speakeasy.totp.verify({
+                    secret: user.mfaSecret,
+                    encoding: 'base32',
+                    token: mfaToken,
+                    window: 2  // ±60s tolerance for clock drift
+                });
+                if (!isVerified) {
+                    return res.status(401).json({
+                        success: false,
+                        message: 'Invalid MFA token'
+                    });
+                }
+            }
+        }
+        // -----------------
+
         const token = generateToken(user._id.toString());
+
+        // Log login
+        await createActivityLog({
+            user: user._id,
+            userName: user.name,
+            hospitalId: user.hospitalIds?.[0] || null,
+            action: 'LOGIN',
+            details: `User logged in using ${identifier}`
+        });
 
         res.status(200).json({
             success: true,
@@ -110,6 +181,8 @@ export const login = async (req: AuthRequest, res: Response) => {
                     email: user.email,
                     role: user.role,
                     phone: user.phone,
+                    hospitalIds: user.hospitalIds,
+                    isMfaEnabled: user.isMfaEnabled,
                 },
                 token,
             },
@@ -197,3 +270,204 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
         });
     }
 };
+
+// @desc    Forgot password
+// @route   POST /api/auth/forgotpassword
+// @access  Public
+export const forgotPassword = async (req: AuthRequest, res: Response) => {
+    try {
+        const user = await User.findOne({ email: req.body.email });
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'There is no user with that email',
+            });
+        }
+
+        // Get reset token
+        const resetToken = user.getResetPasswordToken();
+
+        await user.save({ validateBeforeSave: false });
+
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
+
+        await sendEmail({
+            to: user.email!,
+            subject: 'MediCare — Password Reset Request',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #4f46e5;">Password Reset Request</h2>
+                    <p>Hi ${user.name},</p>
+                    <p>We received a request to reset your password. Click the button below to choose a new one:</p>
+                    <p style="margin: 32px 0;">
+                        <a href="${resetUrl}"
+                           style="background-color: #4f46e5; color: white; padding: 12px 24px;
+                                  text-decoration: none; border-radius: 8px; font-weight: bold;">
+                            Reset My Password
+                        </a>
+                    </p>
+                    <p>Or copy this link into your browser:</p>
+                    <p style="word-break: break-all; color: #6b7280;">${resetUrl}</p>
+                    <p style="color: #9ca3af; font-size: 13px; margin-top: 32px;">
+                        This link expires in 10 minutes. If you did not request a password reset, you can safely ignore this email.
+                    </p>
+                </div>
+            `,
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Password reset email sent',
+        });
+    } catch (error: any) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+// @desc    Reset password
+// @route   PUT /api/auth/resetpassword/:resettoken
+// @access  Public
+export const resetPassword = async (req: AuthRequest, res: Response) => {
+    try {
+        // Get hashed token
+        const resetPasswordToken = crypto
+            .createHash('sha256')
+            .update(req.params.resettoken)
+            .digest('hex');
+
+        const user = await User.findOne({
+            resetPasswordToken,
+            resetPasswordExpire: { $gt: Date.now() },
+        });
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired token',
+            });
+        }
+
+        if (!req.body.password || req.body.password.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'New password must be at least 6 characters',
+            });
+        }
+
+        // Set new password
+        user.password = req.body.password;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Password reset successful',
+        });
+    } catch (error: any) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+// @desc    Setup MFA
+// @route   POST /api/auth/mfa/setup
+// @access  Private
+export const setupMfa = async (req: AuthRequest, res: Response) => {
+    try {
+        // Use req.user._id from the middleware (IUser uses _id)
+        const userId = req.user?._id;
+        if (!userId) return res.status(401).json({ success: false, message: 'Not authenticated' });
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        const secret = speakeasy.generateSecret({
+            length: 20,
+            name: `MediCare:${user.email || user.phone || user.name}`,
+            issuer: 'MediCare'
+        });
+
+        // Use updateOne to avoid triggering the password pre-save hook
+        await User.updateOne({ _id: userId }, { $set: { mfaSecret: secret.base32 } });
+
+        const otpauthUrl = secret.otpauth_url || `otpauth://totp/MediCare:${encodeURIComponent(user.email || user.name)}?secret=${secret.base32}&issuer=MediCare`;
+        const qrCodeUrl = await qrcode.toDataURL(otpauthUrl);
+
+        console.log(`[MFA-SETUP] User ${userId} enrolled MFA successfully`);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                secret: secret.base32,
+                qrCodeUrl
+            }
+        });
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+}
+
+// @desc    Verify MFA
+// @route   POST /api/auth/mfa/verify
+// @access  Private
+export const verifyMfa = async (req: AuthRequest, res: Response) => {
+    try {
+        // Coerce token to string — JSON may send it as a number in some clients
+        const token = String(req.body.token || '').trim();
+        const userId = req.user?._id;
+        if (!userId) return res.status(401).json({ success: false, message: 'Not authenticated' });
+
+        // Fresh DB read without password to avoid stale data
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        if (!user.mfaSecret) return res.status(400).json({ success: false, message: 'MFA not setup' });
+
+        const isVerified = speakeasy.totp.verify({
+            secret: user.mfaSecret,
+            encoding: 'base32',
+            token,
+            window: 4  // ±2 minutes to handle any clock drift
+        });
+
+
+        if (isVerified) {
+            // Use updateOne to avoid password re-hash side effect
+            await User.updateOne({ _id: userId }, { $set: { isMfaEnabled: true } });
+            return res.status(200).json({ success: true, message: 'MFA enabled successfully' });
+        } else {
+            return res.status(400).json({ success: false, message: 'Invalid token' });
+        }
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+}
+
+// @desc    Disable MFA
+// @route   POST /api/auth/mfa/disable
+// @access  Private
+export const disableMfa = async (req: AuthRequest, res: Response) => {
+    try {
+        const user = await User.findById(req.user?._id);
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        if (!user.isMfaEnabled) {
+            return res.status(400).json({ success: false, message: 'MFA is not enabled' });
+        }
+
+        await User.updateOne({ _id: req.user?._id }, { $set: { isMfaEnabled: false, mfaSecret: undefined } });
+
+        return res.status(200).json({ success: true, message: 'MFA disabled successfully' });
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+}
+

@@ -4,6 +4,8 @@ import User from '../models/User';
 import Patient from '../models/Patient';
 import MedicalRecord from '../models/MedicalRecord';
 import Report from '../models/Report';
+import Hospital from '../models/Hospital';
+import ActivityLog from '../models/ActivityLog';
 
 dotenv.config();
 
@@ -16,144 +18,191 @@ const seedDatabase = async () => {
         await Patient.deleteMany();
         await MedicalRecord.deleteMany();
         await Report.deleteMany();
+        await Hospital.deleteMany();
+        await ActivityLog.deleteMany();
 
-        console.log('Data cleared...');
+        console.log('✅ Data cleared successfully...');
 
-        // Create Admin
-        const admin = await User.create({
-            name: 'Admin User',
-            email: 'admin@example.com',
-            password: 'admin123',
+        // -------------------------
+        // 1. Create Hospitals
+        // -------------------------
+        const h1 = await Hospital.create({
+            name: "Central Metropolitan Hospital",
+            address: "100 Prime Ave, New York, NY",
+            contactEmail: "contact@centralmetro.com",
+            contactPhone: "+1-212-555-0100"
+        });
+
+        const h2 = await Hospital.create({
+            name: "Lakeside Regional Medical Center",
+            address: "88 Water Way, Seattle, CA",
+            contactEmail: "info@lakesideregional.com",
+            contactPhone: "+1-310-555-0200"
+        });
+
+        console.log('✅ 2 Hospitals created...');
+
+        // -------------------------
+        // 2. Create Admins
+        // -------------------------
+        await User.create({
+            name: 'Network Super Admin',
+            email: 'system-admin@medicare.com',
+            password: 'password123',
+            role: 'super_admin'
+        });
+
+        const adminH1 = await User.create({
+            name: 'Central Admin',
+            email: 'admin-central@medicare.com',
+            password: 'password123',
             role: 'admin',
-            phone: '+1234567890',
+            hospitalId: h1._id
         });
 
-        // Create Doctors
-        const doctor1 = await User.create({
-            name: 'Dr. John Smith',
-            email: 'doctor@example.com',
-            password: 'doctor123',
+        const adminH2 = await User.create({
+            name: 'Lakeside Admin',
+            email: 'admin-lakeside@medicare.com',
+            password: 'password123',
+            role: 'admin',
+            hospitalId: h2._id
+        });
+
+        console.log('✅ Admins created (1 Super, 2 Standard)...');
+
+        // -------------------------
+        // 3. Create Doctors (2 per hospital)
+        // -------------------------
+        // Hospital 1 Doctors
+        const drH1A = await User.create({
+            name: 'Dr. Gregory House',
+            email: 'dr.house@centralmetro.com',
+            password: 'password123',
             role: 'doctor',
-            phone: '+1234567891',
+            hospitalId: h1._id
         });
-
-        const doctor2 = await User.create({
-            name: 'Dr. Sarah Johnson',
-            email: 'sarah@medicare.com',
-            password: 'doctor123',
+        const drH1B = await User.create({
+            name: 'Dr. James Wilson',
+            email: 'dr.wilson@centralmetro.com',
+            password: 'password123',
             role: 'doctor',
-            phone: '+1234567892',
+            hospitalId: h1._id
         });
 
-        // Create Patients
-        const patient1User = await User.create({
-            name: 'Michael Brown',
-            email: 'patient@example.com',
-            password: 'patient123',
-            role: 'patient',
-            phone: '+1234567893',
+        // Hospital 2 Doctors
+        const drH2A = await User.create({
+            name: 'Dr. Meredith Grey',
+            email: 'dr.grey@lakesideregional.com',
+            password: 'password123',
+            role: 'doctor',
+            hospitalId: h2._id
+        });
+        const drH2B = await User.create({
+            name: 'Dr. Derek Shepherd',
+            email: 'dr.shepherd@lakesideregional.com',
+            password: 'password123',
+            role: 'doctor',
+            hospitalId: h2._id
         });
 
-        const patient2User = await User.create({
-            name: 'Emily Davis',
-            email: 'emily@example.com',
-            password: 'patient123',
-            role: 'patient',
-            phone: '+1234567894',
-        });
+        console.log('✅ 4 Doctors created (2 per hospital)...');
 
-        const patient3User = await User.create({
-            name: 'James Wilson',
-            email: 'james@example.com',
-            password: 'patient123',
-            role: 'patient',
-            phone: '+1234567897',
-        });
+        // -------------------------
+        // 4. Create Patients (4 per hospital)
+        // -------------------------
+        const patientsH1 = [];
+        for (let i = 1; i <= 4; i++) {
+            const tempUser = await User.create({
+                name: `Central Patient ${i}`,
+                email: `patient.central${i}@example.com`,
+                password: 'password123',
+                role: 'patient',
+            });
+            await Patient.create({ userId: tempUser._id });
+            patientsH1.push(tempUser);
+        }
 
-        // Create Patient Profiles
-        await Patient.create({
-            userId: patient1User._id,
-            dateOfBirth: new Date('1985-05-15'),
-            bloodType: 'A+',
-            allergies: 'Penicillin',
-            address: '123 Main St, New York, NY',
-            emergencyContact: 'Jane Brown',
-            emergencyPhone: '+1234567895',
-        });
+        const patientsH2 = [];
+        for (let i = 1; i <= 4; i++) {
+            const tempUser = await User.create({
+                name: `Lakeside Patient ${i}`,
+                email: `patient.lakeside${i}@example.com`,
+                password: 'password123',
+                role: 'patient',
+            });
+            await Patient.create({ userId: tempUser._id });
+            patientsH2.push(tempUser);
+        }
 
-        await Patient.create({
-            userId: patient2User._id,
-            dateOfBirth: new Date('1990-08-22'),
-            bloodType: 'O-',
-            allergies: 'None',
-            address: '456 Oak Ave, Los Angeles, CA',
-            emergencyContact: 'Robert Davis',
-            emergencyPhone: '+1234567896',
-        });
+        console.log('✅ 8 Patients created (4 aligned per hospital)...');
 
-        await Patient.create({
-            userId: patient3User._id,
-            dateOfBirth: new Date('1978-12-10'),
-            bloodType: 'B+',
-            allergies: 'Latex',
-            address: '789 Pine Rd, Chicago, IL',
-            emergencyContact: 'Lisa Wilson',
-            emergencyPhone: '+1234567898',
-        });
+        // -------------------------
+        // 5. Create Medical Records to officially bind them horizontally 
+        // -------------------------
 
-        // Create Medical Records
-        await MedicalRecord.create({
-            patientId: patient1User._id,
-            doctorId: doctor1._id,
-            date: new Date('2024-01-10'),
-            diagnosis: 'Common Cold',
-            treatment: 'Rest and hydration',
-            prescriptions: 'Paracetamol 500mg',
-            notes: 'Patient advised to return if symptoms worsen',
-        });
+        // H1 records (Bindings)
+        for (const pt of patientsH1) {
+            await MedicalRecord.create({
+                patientId: pt._id,
+                doctorId: drH1A._id,
+                hospitalId: h1._id,
+                date: new Date(),
+                diagnosis: 'General Checkup',
+                treatment: 'Standard vitals drawn',
+                notes: 'Patient reports feeling well.',
+            });
+        }
 
-        await MedicalRecord.create({
-            patientId: patient1User._id,
-            doctorId: doctor2._id,
-            date: new Date('2024-01-15'),
-            diagnosis: 'Hypertension',
-            treatment: 'Lifestyle changes and medication',
-            prescriptions: 'Lisinopril 10mg daily',
-            notes: 'Monitor blood pressure weekly',
-        });
+        // H2 records (Bindings)
+        for (const pt of patientsH2) {
+            await MedicalRecord.create({
+                patientId: pt._id,
+                doctorId: drH2A._id,
+                hospitalId: h2._id,
+                date: new Date(),
+                diagnosis: 'General Checkup',
+                treatment: 'Standard vitals drawn',
+                notes: 'Patient reports feeling well.',
+            });
+        }
 
-        await MedicalRecord.create({
-            patientId: patient2User._id,
-            doctorId: doctor1._id,
-            date: new Date('2024-01-12'),
-            diagnosis: 'Migraine',
-            treatment: 'Pain management',
-            prescriptions: 'Sumatriptan 50mg as needed',
-            notes: 'Avoid trigger foods',
-        });
+        console.log('✅ Medical Records generated to establish patient-hospital bonds...');
 
-        console.log('Database seeded successfully!');
-        console.log('\n========== LOGIN CREDENTIALS ==========');
-        console.log('Admin:');
-        console.log('  Email: admin@medicare.com');
-        console.log('  Password: admin123');
-        console.log('\nDoctor 1:');
-        console.log('  Email: john@medicare.com');
-        console.log('  Password: doctor123');
-        console.log('\nDoctor 2:');
-        console.log('  Email: sarah@medicare.com');
-        console.log('  Password: doctor123');
-        console.log('\nPatient 1:');
-        console.log('  Email: michael@example.com');
-        console.log('  Password: patient123');
-        console.log('\nPatient 2:');
-        console.log('  Email: emily@example.com');
-        console.log('  Password: patient123');
+
+        // -------------------------
+        // 6. Provide readout
+        // -------------------------
+        console.log('\n\n🚀 DATABASE SEEDED SUCCESSFULLY 🚀');
+        console.log('\n=======================================');
+        console.log('            SUPER ADMIN                ');
+        console.log('=======================================');
+        console.log('  Login: system-admin@medicare.com');
+        console.log('  Pass:  password123');
+
+        console.log('\n=======================================');
+        console.log('            HOSPITAL 1                 ');
+        console.log(`    ${h1.name}`);
+        console.log('=======================================');
+        console.log(`  Admin Login: admin-central@medicare.com`);
+        console.log(`  Admin Pass:  password123`);
+        console.log(`  Dr 1 Login:  dr.house@centralmetro.com`);
+        console.log(`  Dr 2 Login:  dr.wilson@centralmetro.com`);
+        console.log(`  Patients mapped: 4 (patient.central1@example.com)`);
+
+        console.log('\n=======================================');
+        console.log('            HOSPITAL 2                 ');
+        console.log(`    ${h2.name}`);
+        console.log('=======================================');
+        console.log(`  Admin Login: admin-lakeside@medicare.com`);
+        console.log(`  Admin Pass:  password123`);
+        console.log(`  Dr 1 Login:  dr.grey@lakesideregional.com`);
+        console.log(`  Dr 2 Login:  dr.shepherd@lakesideregional.com`);
+        console.log(`  Patients mapped: 4 (patient.lakeside1@example.com)`);
         console.log('=======================================\n');
 
         process.exit();
     } catch (error) {
-        console.error('Error seeding database:', error);
+        console.error('❌ Error seeding database:', error);
         process.exit(1);
     }
 };

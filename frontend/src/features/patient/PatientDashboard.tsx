@@ -45,6 +45,19 @@ export default function PatientDashboard() {
         })
         : 'No visits yet';
 
+    // Find the nearest upcoming follow-up
+    const nextFollowUpDate = records
+        ?.filter(r => r.nextFollowUp && new Date(r.nextFollowUp) >= new Date())
+        .sort((a, b) => new Date(a.nextFollowUp!).getTime() - new Date(b.nextFollowUp!).getTime())[0]?.nextFollowUp;
+
+    const formattedFollowUp = nextFollowUpDate
+        ? new Date(nextFollowUpDate).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        })
+        : 'Not scheduled';
+
     return (
         <div className="space-y-8 pb-10">
             {/* Premium Header/Banner */}
@@ -94,8 +107,8 @@ export default function PatientDashboard() {
                     iconColor="bg-purple-100 text-purple-600"
                 />
                 <Card
-                    title="Next Appointment"
-                    value="No upcoming"
+                    title="Next Follow-up"
+                    value={formattedFollowUp}
                     icon={CalendarClock}
                     iconColor="bg-orange-100 text-orange-600"
                 />
@@ -303,7 +316,7 @@ export default function PatientDashboard() {
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-bold text-gray-900 truncate">{record.diagnosis}</p>
                                     <p className="text-xs text-gray-500 mt-1 flex items-center">
-                                        Dr. {record.doctorName} <span className="mx-2 font-black text-gray-200">·</span> {record.date}
+                                        Dr. {record.doctorId?.name || record.doctorName || 'Unknown'} <span className="mx-2 font-black text-gray-200">·</span> {record.date}
                                     </p>
                                 </div>
                                 <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-green-50 text-green-700 border border-green-100 ml-4 flex-shrink-0">

@@ -6,15 +6,22 @@ export interface IMedicalRecord extends Document {
     date: Date;
     diagnosis: string;
     treatment: string;
-    prescriptions?: string;
+    prescriptions?: {
+        medicationName: string;
+        dosage: string;
+        frequency: string;
+        duration: string;
+    }[];
     notes?: string;
+    nextFollowUp?: Date;
+    hospitalId?: mongoose.Types.ObjectId;
     createdAt: Date;
 }
 
 const medicalRecordSchema = new Schema<IMedicalRecord>({
     patientId: {
         type: Schema.Types.ObjectId,
-        ref: 'User',
+        ref: 'User', // References User._id (the patient's user account)
         required: true,
     },
     doctorId: {
@@ -35,11 +42,21 @@ const medicalRecordSchema = new Schema<IMedicalRecord>({
         type: String,
         required: [true, 'Please provide treatment information'],
     },
-    prescriptions: {
-        type: String,
-    },
+    prescriptions: [{
+        medicationName: { type: String },
+        dosage: { type: String },
+        frequency: { type: String },
+        duration: { type: String },
+    }],
     notes: {
         type: String,
+    },
+    nextFollowUp: {
+        type: Date,
+    },
+    hospitalId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Hospital',
     },
     createdAt: {
         type: Date,

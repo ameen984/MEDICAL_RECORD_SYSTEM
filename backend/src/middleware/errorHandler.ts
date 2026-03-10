@@ -28,7 +28,8 @@ export const errorHandler = (
 
     // Mongoose duplicate key
     if (err.code === 11000) {
-        error.message = 'Duplicate field value entered';
+        const field = Object.keys(err.keyValue || {})[0] || 'field';
+        error.message = `An account with that ${field} already exists`;
         error.statusCode = 400;
     }
 
@@ -38,6 +39,30 @@ export const errorHandler = (
             .map((val: any) => val.message)
             .join(', ');
         error.message = message;
+        error.statusCode = 400;
+    }
+
+    // JWT expired
+    if (err.name === 'TokenExpiredError') {
+        error.message = 'Session expired, please log in again';
+        error.statusCode = 401;
+    }
+
+    // JWT invalid/malformed
+    if (err.name === 'JsonWebTokenError') {
+        error.message = 'Invalid session token, please log in again';
+        error.statusCode = 401;
+    }
+
+    // Multer file too large
+    if (err.code === 'LIMIT_FILE_SIZE') {
+        error.message = 'File too large. Maximum allowed size is 10MB';
+        error.statusCode = 400;
+    }
+
+    // Multer unexpected field
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        error.message = 'Unexpected file upload field';
         error.statusCode = 400;
     }
 

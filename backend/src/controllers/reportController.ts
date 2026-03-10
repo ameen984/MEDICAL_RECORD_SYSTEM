@@ -2,6 +2,8 @@ import { Response } from 'express';
 import path from 'path';
 import fs from 'fs';
 import Report from '../models/Report';
+import User from '../models/User';
+import Patient from '../models/Patient';
 import { AuthRequest } from '../middleware/auth';
 
 // @desc    Get reports
@@ -24,6 +26,23 @@ export const getReports = async (req: AuthRequest, res: Response) => {
         // Filter by type if provided
         if (req.query.type) {
             query.type = req.query.type;
+        }
+
+        // Enforce sharing consent for doctors/admins querying a specific patient
+        if ((req.user?.role === 'doctor' || req.user?.role === 'admin') && query.patientId) {
+            const patientInfo = await Patient.findOne({ userId: query.patientId });
+            if (patientInfo?.sharingPreference === 'explicit') {
+                const activeContextId = req.headers['x-hospital-context'] || req.user?.hospitalIds?.[0];
+                const isApproved = patientInfo.approvedHospitals?.some(
+                    (hid: any) => hid.toString() === activeContextId?.toString()
+                );
+                if (!isApproved) {
+                    return res.status(403).json({
+                        success: false,
+                        message: 'This patient requires explicit consent to share records with your current facility.',
+                    });
+                }
+            }
         }
 
         const reports = await Report.find(query)
@@ -63,6 +82,34 @@ export const uploadReport = async (req: AuthRequest, res: Response) => {
         let targetPatientId = patientId;
         let doctorId = undefined;
 
+        // Validate that the target patient exists (skip for patients uploading to themselves)
+        if (req.user?.role !== 'patient') {
+            if (!targetPatientId) {
+                return res.status(400).json({ success: false, message: 'patientId is required' });
+            }
+            const patientUser = await User.findById(targetPatientId);
+            if (!patientUser) {
+                return res.status(400).json({ success: false, message: 'Patient not found' });
+            }
+
+            // Consent check: doctors/admins cannot upload to patients who require explicit approval
+            if (req.user?.role === 'doctor' || req.user?.role === 'admin') {
+                const patientRecord = await Patient.findOne({ userId: targetPatientId });
+                if (patientRecord?.sharingPreference === 'explicit') {
+                    const activeContextId = req.headers['x-hospital-context'] || req.user?.hospitalIds?.[0];
+                    const isApproved = patientRecord.approvedHospitals?.some(
+                        (hid: any) => hid.toString() === activeContextId?.toString()
+                    );
+                    if (!isApproved) {
+                        return res.status(403).json({
+                            success: false,
+                            message: 'This patient requires explicit consent to share records with your current facility.',
+                        });
+                    }
+                }
+            }
+        }
+
         if (req.user?.role === 'patient') {
             targetPatientId = req.user._id; // Patient uploads to themselves
         } else if (req.user?.role === 'doctor') {
@@ -84,6 +131,25 @@ export const uploadReport = async (req: AuthRequest, res: Response) => {
             .populate('patientId', 'name email')
             .populate('doctorId', 'name email')
             .populate('uploadedBy', 'name email');
+
+        // Trigger Real-Time Socket Notifications
+        const { broadcastToRole, emitToUser } = require('../services/socketService');
+        if (req.user?.role === 'patient') {
+            // Patient uploaded it -> Notify doctors
+            broadcastToRole('doctor', 'NEW_REPORT', {
+                message: `Patient ${req.user?.name} uploaded a new lab report: ${title}`,
+                patientId: targetPatientId,
+                reportId: report._id,
+                time: new Date()
+            });
+        } else {
+            // Doctor uploaded it -> Notify patient
+            emitToUser(targetPatientId.toString(), 'NEW_REPORT', {
+                message: `A new lab report was uploaded to your profile: ${title}`,
+                reportId: report._id,
+                time: new Date()
+            });
+        }
 
         res.status(201).json({
             success: true,

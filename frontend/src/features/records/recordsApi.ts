@@ -5,7 +5,12 @@ interface CreateRecordRequest {
     patientId: string;
     diagnosis: string;
     treatment: string;
-    prescriptions?: string;
+    prescriptions?: {
+        medicationName: string;
+        dosage: string;
+        frequency: string;
+        duration: string;
+    }[];
     notes?: string;
 }
 
@@ -31,7 +36,10 @@ export const recordsApi = apiSlice.injectEndpoints({
                 body: recordData,
             }),
             transformResponse: (response: any) => response.data,
-            invalidatesTags: ['Records'],
+            invalidatesTags: (result: any) => {
+                const pId = typeof result?.patientId === 'object' ? (result.patientId._id || result.patientId.id) : result?.patientId;
+                return result ? [{ type: 'Records', id: pId }, 'Records'] : ['Records'];
+            },
         }),
         updateRecord: builder.mutation<MedicalRecord, Partial<MedicalRecord> & { id: string }>({
             query: ({ id, ...recordData }) => ({
@@ -40,7 +48,17 @@ export const recordsApi = apiSlice.injectEndpoints({
                 body: recordData,
             }),
             transformResponse: (response: any) => response.data,
-            invalidatesTags: ['Records'],
+            invalidatesTags: (result: any) => {
+                const pId = typeof result?.patientId === 'object' ? (result.patientId._id || result.patientId.id) : result?.patientId;
+                return result ? [{ type: 'Records', id: pId }, 'Records'] : ['Records'];
+            },
+        }),
+        deleteRecord: builder.mutation<void, string>({
+            query: (id) => ({
+                url: `/records/${id}`,
+                method: 'DELETE',
+            }),
+            invalidatesTags: ['Records', { type: 'Records', id: 'LIST' }], // Generically wipe since patientId is missing in request
         }),
     }),
 });
@@ -50,4 +68,5 @@ export const {
     useGetRecordByIdQuery,
     useCreateRecordMutation,
     useUpdateRecordMutation,
+    useDeleteRecordMutation,
 } = recordsApi;

@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { X, Upload, FileText } from 'lucide-react';
+import { X, Upload, FileText, CheckCircle } from 'lucide-react';
 import { useUploadReportMutation } from '../reports/reportsApi';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../app/store';
@@ -20,6 +20,7 @@ export default function UploadReportModal({ isOpen, onClose }: UploadReportModal
     });
     const [file, setFile] = useState<File | null>(null);
     const [error, setError] = useState('');
+    const [isSuccess, setIsSuccess] = useState(false);
 
     if (!isOpen) return null;
 
@@ -45,10 +46,15 @@ export default function UploadReportModal({ isOpen, onClose }: UploadReportModal
                 file: file,
             }).unwrap();
             
-            onClose();
-            // Reset form
-            setFormData({ title: '', type: 'lab' });
-            setFile(null);
+            setIsSuccess(true);
+            
+            setTimeout(() => {
+                onClose();
+                // Reset form
+                setFormData({ title: '', type: 'lab' });
+                setFile(null);
+                setIsSuccess(false);
+            }, 1800);
         } catch (err: any) {
             setError(err.data?.message || 'Failed to upload report');
         }
@@ -81,7 +87,16 @@ export default function UploadReportModal({ isOpen, onClose }: UploadReportModal
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit}>
+                {isSuccess ? (
+                    <div className="p-12 flex flex-col items-center justify-center text-center space-y-4">
+                        <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center animate-bounce">
+                            <CheckCircle className="h-8 w-8 text-green-600" />
+                        </div>
+                        <h4 className="text-xl font-bold text-gray-900">Upload Successful!</h4>
+                        <p className="text-sm text-gray-500">Your report has been securely saved.</p>
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit}>
                     <div className="p-4 space-y-4">
                         {error && (
                             <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
@@ -128,11 +143,11 @@ export default function UploadReportModal({ isOpen, onClose }: UploadReportModal
                                     <div className="space-y-1 text-center">
                                         <Upload className="mx-auto h-8 w-8 text-gray-400" />
                                         <div className="text-sm text-gray-600">
-                                            <label className="relative cursor-pointer rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none">
-                                                <span>Upload a file</span>
+                                            <label className="relative cursor-pointer rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none block w-full h-full">
+                                                <span className="pointer-events-none absolute inset-0 flex items-center justify-center">Upload a file</span>
                                                 <input
                                                     type="file"
-                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                    className="w-full h-full opacity-0 cursor-pointer min-h-[40px]"
                                                     accept=".pdf,.jpg,.jpeg,.png"
                                                     onChange={(e) => {
                                                         if (e.target.files && e.target.files[0]) {
@@ -179,6 +194,7 @@ export default function UploadReportModal({ isOpen, onClose }: UploadReportModal
                         </button>
                     </div>
                 </form>
+                )}
             </div>
         </div>
     );

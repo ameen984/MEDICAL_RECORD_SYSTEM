@@ -6,7 +6,9 @@ import {
   LayoutDashboard, 
   UserPlus,
   Upload,
-  FolderOpen
+  FolderOpen,
+  Building2,
+  Activity
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../app/store.ts';
@@ -20,7 +22,14 @@ const Sidebar = () => {
   const adminLinks = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'User Management', path: '/users', icon: Users },
+    { name: 'Audit Logs', path: '/audit-logs', icon: Activity },
+  ];
 
+  const superAdminLinks = [
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'User Management', path: '/users', icon: Users },
+    { name: 'Hospitals', path: '/hospitals', icon: Building2 },
+    { name: 'Audit Logs', path: '/audit-logs', icon: Activity },
   ];
 
   const doctorLinks = [
@@ -40,6 +49,8 @@ const Sidebar = () => {
 
   const getLinksByRole = () => {
     switch (user.role) {
+      case 'super_admin':
+        return superAdminLinks;
       case 'admin':
         return adminLinks;
       case 'doctor':

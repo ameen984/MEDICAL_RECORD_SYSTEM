@@ -2,24 +2,29 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, '../../uploads/reports');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
+// Ensure secure local upload directory exists (never served via express.static)
+const uploadDir = path.join(__dirname, '../../uploads/reports');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configure storage
+// Configure local disk storage for Multer
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadsDir);
+    destination: function (req, file, cb) {
+        cb(null, uploadDir);
     },
-    filename: (req, file, cb) => {
+    filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, 'report-' + uniqueSuffix + path.extname(file.originalname));
-    },
+        const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'];
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (!allowedExtensions.includes(ext)) {
+            return cb(new Error('File type not allowed'), '');
+        }
+        cb(null, `report-${uniqueSuffix}${ext}`);
+    }
 });
 
-// File filter
+// File filter for safety
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     const allowedTypes = /jpeg|jpg|png|pdf/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -39,3 +44,4 @@ export const upload = multer({
         fileSize: 10 * 1024 * 1024, // 10MB limit
     },
 });
+

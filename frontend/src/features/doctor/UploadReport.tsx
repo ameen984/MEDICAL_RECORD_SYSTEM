@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../../app/store';
 import { useGetPatientsQuery } from '../patients/patientsApi';
 import { useUploadReportMutation } from '../reports/reportsApi';
-import { ArrowLeft, Upload as UploadIcon } from 'lucide-react';
+import { ArrowLeft, Upload as UploadIcon, CheckCircle } from 'lucide-react';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import FileUpload from '../../components/ui/FileUpload';
@@ -21,6 +21,7 @@ export default function UploadReport() {
         title: '',
         file: null as File | null,
     });
+    const [isSuccess, setIsSuccess] = useState(false);
 
     const handleFileSelect = (file: File) => {
         setFormData({ ...formData, file });
@@ -40,16 +41,15 @@ export default function UploadReport() {
         try {
             await uploadReport({
                 patientId: formData.patientId,
-                patientName: selectedPatient.name,
-                doctorId: user.id,
-                doctorName: user.name,
                 type: formData.type,
                 title: formData.title,
                 file: formData.file,
             }).unwrap();
 
-            alert('Report uploaded successfully!');
-            navigate('/patients');
+            setIsSuccess(true);
+            setTimeout(() => {
+                navigate('/patients');
+            }, 1800);
         } catch (error) {
             console.error('Failed to upload report:', error);
             alert('Failed to upload report');
@@ -74,6 +74,15 @@ export default function UploadReport() {
 
             {/* Form */}
             <div className="bg-white shadow rounded-lg p-6">
+                {isSuccess ? (
+                    <div className="py-16 flex flex-col items-center justify-center text-center space-y-4">
+                        <div className="h-20 w-20 bg-green-100 rounded-full flex items-center justify-center animate-bounce">
+                            <CheckCircle className="h-10 w-10 text-green-600" />
+                        </div>
+                        <h4 className="text-2xl font-bold text-gray-900">Report Uploaded Successfully!</h4>
+                        <p className="text-gray-500">Redirecting to patient list...</p>
+                    </div>
+                ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <Select
                         label="Select Patient"
@@ -130,6 +139,7 @@ export default function UploadReport() {
                         </button>
                     </div>
                 </form>
+                )}
             </div>
         </div>
     );

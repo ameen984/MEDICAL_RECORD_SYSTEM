@@ -35,6 +35,15 @@ export const usersApi = apiSlice.injectEndpoints({
             transformResponse: (response: any) => response.data,
             invalidatesTags: ['Users'],
         }),
+        toggleUserStatus: builder.mutation<User, { id: string; isActive: boolean }>({
+            query: ({ id, isActive }) => ({
+                url: `/users/${id}/status`,
+                method: 'PATCH',
+                body: { isActive },
+            }),
+            transformResponse: (response: any) => response.data,
+            invalidatesTags: ['Users'],
+        }),
         deleteUser: builder.mutation<void, string>({
             query: (id) => ({
                 url: `/users/${id}`,
@@ -50,5 +59,6 @@ export const {
     useCreateUserMutation,
     useUpdateUserRoleMutation,
     useUpdateUserMutation,
+    useToggleUserStatusMutation,
     useDeleteUserMutation,
 } = usersApi;

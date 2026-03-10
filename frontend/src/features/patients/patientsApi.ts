@@ -16,7 +16,11 @@ export const patientsApi = apiSlice.injectEndpoints({
         getPatientMedicalHistory: builder.query<MedicalRecord[], string>({
             query: (patientId) => `/patients/${patientId}/history`,
             transformResponse: (response: any) => response.data,
-            providesTags: (_result, _error, patientId) => [{ type: 'Records', id: patientId }],
+            providesTags: (_result, _error, patientId) => [
+                { type: 'Records', id: patientId },
+                { type: 'Records', id: 'LIST' },
+                'Records'
+            ],
         }),
         updatePatientMedicalInfo: builder.mutation({
             query: ({ id, data }: { id: string; data: Record<string, any> }) => ({

@@ -1,19 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../app/store';
-import { User, Heart, AlertCircle, Save, Loader2, Pencil, X, CheckCircle2, XCircle, AlertTriangle, Cigarette, Wine, ShieldAlert } from 'lucide-react';
+import { User, Heart, AlertCircle, Save, Loader2, Pencil, X, CheckCircle2, XCircle, AlertTriangle, Cigarette, Wine, ShieldAlert, ShieldCheck } from 'lucide-react';
 import Input from '../../components/ui/Input';
+import MfaSetupModal from '../auth/MfaSetupModal';
 import { useGetPatientProfileQuery, useUpdatePatientProfileMutation, useChangePasswordMutation } from './patientApi';
+import { useGetHospitalsQuery } from '../admin/hospitalsApi';
+import type { Hospital } from '../../types';
 
-type EditingSection = 'personal' | 'medical' | 'emergency' | null;
+type EditingSection = 'personal' | 'medical' | 'emergency' | 'consent' | null;
 
 export default function Profile() {
     const { user } = useSelector((state: RootState) => state.auth);
-    const { data: profileData, isLoading: isProfileLoading } = useGetPatientProfileQuery(user?.id ?? '', {
+    const { data: profileData, isLoading: isProfileLoading, refetch: refetchProfile } = useGetPatientProfileQuery(user?.id ?? '', {
         skip: !user?.id,
     });
     const [updateProfile, { isLoading: isUpdating }] = useUpdatePatientProfileMutation();
     const [changePassword, { isLoading: isChangingPassword }] = useChangePasswordMutation();
+    const { data: hospitals = [], isLoading: isHospitalsLoading } = useGetHospitalsQuery();
 
     const [editingSection, setEditingSection] = useState<EditingSection>(null);
     const [savedSection, setSavedSection] = useState<EditingSection>(null);
@@ -34,6 +38,8 @@ export default function Profile() {
             smoking: 'No' as 'Yes' | 'No' | 'Occasional' | 'Former',
             alcohol: 'No' as 'Yes' | 'No' | 'Occasional' | 'Former',
         },
+        sharingPreference: 'global' as 'global' | 'explicit',
+        approvedHospitals: [] as string[],
     });
 
     const [passwordData, setPasswordData] = useState({
@@ -44,6 +50,7 @@ export default function Profile() {
 
     const [message, setMessage] = useState({ type: '', text: '' });
     const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
+    const [isMfaModalOpen, setIsMfaModalOpen] = useState(false);
 
     // Load data when fetched
     useEffect(() => {
@@ -65,6 +72,8 @@ export default function Profile() {
                     smoking: data.habits?.smoking || 'No',
                     alcohol: data.habits?.alcohol || 'No',
                 },
+                sharingPreference: data.sharingPreference || 'global',
+                approvedHospitals: data.approvedHospitals?.map((h: any) => typeof h === 'object' ? h._id || h.id : h) || [],
             });
         }
     }, [profileData]);
@@ -94,6 +103,8 @@ export default function Profile() {
                     smoking: data.habits?.smoking || 'No',
                     alcohol: data.habits?.alcohol || 'No',
                 },
+                sharingPreference: data.sharingPreference || 'global',
+                approvedHospitals: data.approvedHospitals?.map((h: any) => typeof h === 'object' ? h._id || h.id : h) || [],
             });
         }
         setEditingSection(null);
@@ -279,8 +290,8 @@ export default function Profile() {
                     </form>
                 </div>
 
-                {/* Medical Information */}
-                <div className="group bg-white shadow-sm rounded-3xl border border-gray-100 p-8 hover:border-red-100 transition-all">
+                {/* Medical Information — patients only */}
+                {user?.role === 'patient' && <div className="group bg-white shadow-sm rounded-3xl border border-gray-100 p-8 hover:border-red-100 transition-all">
                     <SectionHeader
                         icon={<ShieldAlert className="h-6 w-6 mr-3 text-red-500" />}
                         title="Biometric & Medical Data"
@@ -452,10 +463,10 @@ export default function Profile() {
                             </div>
                         </div>
                     </form>
-                </div>
+                </div>}
 
-                {/* Emergency Contact */}
-                <div className="group bg-white shadow-sm rounded-3xl border border-gray-100 p-8 hover:border-orange-100 transition-all">
+                {/* Emergency Contact — patients only */}
+                {user?.role === 'patient' && <div className="group bg-white shadow-sm rounded-3xl border border-gray-100 p-8 hover:border-orange-100 transition-all">
                     <SectionHeader
                         icon={<AlertCircle className="h-6 w-6 mr-3 text-orange-600" />}
                         title="Emergency Protocol"
@@ -480,6 +491,148 @@ export default function Profile() {
                             />
                         </div>
                     </form>
+                </div>}
+
+                {/* Data Privacy & Consent Settings — patients only */}
+                {user?.role === 'patient' && <div className="group bg-white shadow-sm rounded-3xl border border-gray-100 p-8 hover:border-purple-100 transition-all">
+                    <SectionHeader
+                        icon={<ShieldAlert className="h-6 w-6 mr-3 text-purple-600" />}
+                        title="Data Privacy & Sharing Consent"
+                        section="consent"
+                        color="text-purple-600"
+                    />
+                    <form id="form-consent" onSubmit={handleSave} className="space-y-6">
+                        <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
+                            <h4 className="text-sm font-bold text-gray-900 mb-1">Global Medical Network Visibility</h4>
+                            <p className="text-xs text-gray-600">
+                                This determines whether your clinical data is universally accessible by all verified doctors across our connected hospital network, or restricted to specifically approved locations.
+                            </p>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <label className="flex items-start gap-4 p-4 border rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                                <div className="flex-shrink-0 mt-1">
+                                    <input 
+                                        type="radio" 
+                                        name="sharingPreference"
+                                        value="global"
+                                        checked={formData.sharingPreference === 'global'}
+                                        onChange={(e) => setFormData({...formData, sharingPreference: e.target.value as 'global' | 'explicit'})}
+                                        disabled={!isEditing('consent')}
+                                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="font-bold text-sm text-gray-900">Global Data Access (Recommended)</div>
+                                    <div className="text-xs text-gray-500 mt-1">Any attending doctor checking into this platform who enters your ID can retrieve your historical data. Crucial for emergency cases in unregistered hospitals.</div>
+                                </div>
+                            </label>
+
+                            <label className="flex items-start gap-4 p-4 border rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                                <div className="flex-shrink-0 mt-1">
+                                    <input 
+                                        type="radio" 
+                                        name="sharingPreference"
+                                        value="explicit"
+                                        checked={formData.sharingPreference === 'explicit'}
+                                        onChange={(e) => setFormData({...formData, sharingPreference: e.target.value as 'global' | 'explicit'})}
+                                        disabled={!isEditing('consent')}
+                                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="font-bold text-sm text-gray-900">Restricted Explicit Access</div>
+                                    <div className="text-xs text-gray-500 mt-1">Only doctors affiliated with your explicitly approved facilities can search and access your clinical history. Warning: In emergencies at non-approved hospitals, data will be unavailable.</div>
+                                </div>
+                            </label>
+                        </div>
+
+                        {formData.sharingPreference === 'explicit' && (
+                            <div className="pt-4 border-t border-gray-100 animate-in fade-in slide-in-from-top-2">
+                                <h4 className="text-sm font-bold text-gray-900 mb-3">Approved Healthcare Facilities</h4>
+                                {isHospitalsLoading ? (
+                                    <div className="text-xs text-gray-500 flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Loading facilities...</div>
+                                ) : (
+                                    <>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-2 bg-gray-50/50 rounded-xl border border-gray-100">
+                                        {hospitals.length === 0 && (
+                                            <div className="text-sm text-gray-400 italic col-span-full py-2 text-center">No facilities registered in the network yet.</div>
+                                        )}
+                                        {hospitals.map((hospital: Hospital) => {
+                                            const id = String(hospital._id || hospital.id);
+                                            const isChecked = formData.approvedHospitals.includes(id);
+
+                                            return (
+                                                <label
+                                                    key={id}
+                                                    className={`flex items-center p-3 rounded-lg border text-sm transition-colors ${
+                                                        isEditing('consent')
+                                                            ? isChecked ? 'bg-purple-50 border-purple-200 cursor-pointer' : 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer'
+                                                            : isChecked ? 'bg-white border-purple-100' : 'bg-gray-50 border-gray-100 opacity-60'
+                                                    }`}
+                                                >
+                                                    {isEditing('consent') ? (
+                                                        <input
+                                                            type="checkbox"
+                                                            className="rounded text-purple-600 focus:ring-purple-500 mr-3 h-4 w-4 flex-shrink-0"
+                                                            checked={isChecked}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setFormData(prev => ({...prev, approvedHospitals: [...prev.approvedHospitals, id]}));
+                                                                } else {
+                                                                    setFormData(prev => ({...prev, approvedHospitals: prev.approvedHospitals.filter(h => h !== id)}));
+                                                                }
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <CheckCircle2 className={`h-4 w-4 mr-2 flex-shrink-0 ${isChecked ? 'text-purple-500' : 'text-gray-300'}`} />
+                                                    )}
+                                                    <span className={`font-medium ${isChecked ? 'text-purple-900' : isEditing('consent') ? 'text-gray-700' : 'text-gray-400'}`}>
+                                                        {hospital.name}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                    {!isEditing('consent') && formData.approvedHospitals.length === 0 && hospitals.length > 0 && (
+                                        <p className="text-xs text-amber-600 mt-2 font-medium">No facilities approved yet — click the pencil icon above to approve facilities.</p>
+                                    )}
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </form>
+                </div>}
+
+                {/* Security Setup: MFA */}
+                <div className="bg-white shadow-sm rounded-3xl border border-gray-100 p-8 hover:border-blue-100 transition-all">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center text-white">
+                            <ShieldCheck className="h-5 w-5" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900">Multi-Factor Authentication</h3>
+                        {user?.isMfaEnabled ? (
+                            <span className="ml-2 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">Active</span>
+                        ) : (
+                            <span className="ml-2 px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">Not Enabled</span>
+                        )}
+                    </div>
+                    <p className="text-sm text-gray-500 mb-6">
+                        {user?.isMfaEnabled
+                            ? 'Your account is protected with an authenticator app. You can disable or reconfigure it below.'
+                            : 'Enhance your account security by requiring a two-factor authentication code when you sign in.'}
+                    </p>
+                    <button
+                        onClick={() => setIsMfaModalOpen(true)}
+                        className={`inline-flex items-center px-6 py-2.5 font-bold rounded-xl transition-colors ${
+                            user?.isMfaEnabled
+                                ? 'bg-green-50 text-green-700 hover:bg-green-100'
+                                : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                        }`}
+                    >
+                        <ShieldCheck className="h-4 w-4 mr-2" />
+                        {user?.isMfaEnabled ? 'Manage Authenticator App' : 'Setup Authenticator App'}
+                    </button>
                 </div>
 
                 {/* Change Password */}
@@ -540,6 +693,14 @@ export default function Profile() {
                     </form>
                 </div>
             </div>
+            <MfaSetupModal
+                isOpen={isMfaModalOpen}
+                onClose={() => setIsMfaModalOpen(false)}
+                isMfaEnabled={user?.isMfaEnabled ?? false}
+                onStatusChange={() => {
+                    if (user?.role === 'patient') refetchProfile();
+                }}
+            />
         </div>
     );
 }

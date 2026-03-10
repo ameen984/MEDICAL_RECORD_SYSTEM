@@ -11,6 +11,7 @@ const DashboardPage = () => {
   if (!user) return null;
 
   switch (user.role) {
+    case 'super_admin':
     case 'admin':
       return <AdminDashboard />;
     case 'doctor':

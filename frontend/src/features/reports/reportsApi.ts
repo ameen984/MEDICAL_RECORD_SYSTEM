@@ -16,7 +16,10 @@ export const reportsApi = apiSlice.injectEndpoints({
                 url: '/reports',
                 params,
             }),
-            transformResponse: (response: any) => response.data,
+            transformResponse: (response: any) => response.data.map((report: any) => ({
+                ...report,
+                id: report._id || report.id
+            })),
             providesTags: ['Reports'],
         }),
         uploadReport: builder.mutation<Report, UploadReportRequest>({
@@ -36,7 +39,10 @@ export const reportsApi = apiSlice.injectEndpoints({
                     body: formData,
                 };
             },
-            transformResponse: (response: any) => response.data,
+            transformResponse: (response: any) => ({
+                ...response.data,
+                id: response.data._id || response.data.id
+            }),
             invalidatesTags: ['Reports'],
         }),
         deleteReport: builder.mutation<void, string>({

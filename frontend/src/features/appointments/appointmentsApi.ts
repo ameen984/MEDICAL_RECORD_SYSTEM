@@ -1,38 +1,34 @@
 import { apiSlice } from '../../app/apiSlice';
-import type { Appointment } from '../../types';
 
 export const appointmentsApi = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
-        getAppointments: builder.query<Appointment[], void>({
-            query: () => '/appointments',
-            providesTags: ['Appointments'],
+        getAppointments: builder.query<any[], { patientId?: string; doctorId?: string; status?: string }>({
+            query: (params) => ({ url: '/appointments', params }),
+            providesTags: ['Appointment'],
         }),
-        getMyAppointments: builder.query<Appointment[], void>({
-            query: () => '/appointments/my',
-            providesTags: ['Appointments'],
+        getAppointmentById: builder.query<any, string>({
+            query: (id) => `/appointments/${id}`,
+            providesTags: (_r, _e, id) => [{ type: 'Appointment', id }],
         }),
-        createAppointment: builder.mutation<Appointment, Partial<Appointment>>({
-            query: (data) => ({
-                url: '/appointments',
-                method: 'POST',
-                body: data,
-            }),
-            invalidatesTags: ['Appointments'],
+        createAppointment: builder.mutation<any, Partial<any>>({
+            query: (body) => ({ url: '/appointments', method: 'POST', body }),
+            invalidatesTags: ['Appointment'],
         }),
-        updateAppointmentStatus: builder.mutation<Appointment, { id: string; status: Appointment['status'] }>({
-            query: ({ id, status }) => ({
-                url: `/appointments/${id}/status`,
-                method: 'PATCH',
-                body: { status },
-            }),
-            invalidatesTags: ['Appointments'],
+        updateAppointment: builder.mutation<any, { id: string; data: Partial<any> }>({
+            query: ({ id, data }) => ({ url: `/appointments/${id}`, method: 'PUT', body: data }),
+            invalidatesTags: (_r, _e, { id }) => [{ type: 'Appointment', id }, 'Appointment'],
+        }),
+        cancelAppointment: builder.mutation<any, string>({
+            query: (id) => ({ url: `/appointments/${id}`, method: 'DELETE' }),
+            invalidatesTags: ['Appointment'],
         }),
     }),
 });
 
 export const {
     useGetAppointmentsQuery,
-    useGetMyAppointmentsQuery,
+    useGetAppointmentByIdQuery,
     useCreateAppointmentMutation,
-    useUpdateAppointmentStatusMutation,
+    useUpdateAppointmentMutation,
+    useCancelAppointmentMutation,
 } = appointmentsApi;
