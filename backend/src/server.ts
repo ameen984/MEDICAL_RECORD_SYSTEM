@@ -25,6 +25,7 @@ import activityRoutes from './routes/activityRoutes';
 import hospitalRoutes from './routes/hospitalRoutes';
 import analyticsRoutes from './routes/analyticsRoutes';
 import appointmentRoutes from './routes/appointmentRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 
 // Connect to database
 if (process.env.NODE_ENV !== 'test') {
@@ -88,6 +89,7 @@ app.use('/api/activity', activityRoutes);
 app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

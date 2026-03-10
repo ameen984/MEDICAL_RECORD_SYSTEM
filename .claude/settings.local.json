@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node \"C:\\\\Users\\\\alame\\\\Desktop\\\\New folder \\(2\\)\\\\antigravity-awesome-skills\\\\bin\\\\install.js\" --help)",
+      "Bash(node \"C:\\\\Users\\\\alame\\\\Desktop\\\\New folder \\(2\\)\\\\antigravity-awesome-skills\\\\bin\\\\install.js\" --claude)",
+      "Bash(npm install nodemailer)",
+      "Bash(npm install --save-dev @types/nodemailer)",
+      "Bash(grep -r \"url: ''/\" c:/Users/alame/Desktop/atnigravity/medical-record-system/frontend/src --include=\"*.ts\" --include=\"*.tsx\")",
+      "Bash(grep -oE \"url: ''[^'']*''\")",
+      "Bash(cat c:/Users/alame/Desktop/atnigravity/medical-record-system/backend/src/routes/*.ts)",
+      "Bash(sed \"s/router\\\\.//\")",
+      "Bash(ls -la c:/Users/alame/Desktop/atnigravity/medical-record-system/backend/*.js c:/Users/alame/Desktop/atnigravity/medical-record-system/backend/*.mjs)",
+      "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"feat: add server-side logout, notification persistence, and fix email timeout\")"
+    ]
+  }
+}

@@ -25,11 +25,14 @@ export const sendEmail = async ({ to, subject, html }: SendEmailOptions): Promis
     const transporter = nodemailer.createTransport({
         host: SMTP_HOST,
         port: Number(SMTP_PORT) || 587,
-        secure: Number(SMTP_PORT) === 465, // true for 465, false for others
+        secure: Number(SMTP_PORT) === 465,
         auth: {
             user: SMTP_USER,
             pass: SMTP_PASS,
         },
+        connectionTimeout: 10_000,  // 10 s to establish TCP connection
+        greetingTimeout:   8_000,   // 8 s for SMTP EHLO greeting
+        socketTimeout:     15_000,  // 15 s of inactivity before aborting
     });
 
     await transporter.sendMail({

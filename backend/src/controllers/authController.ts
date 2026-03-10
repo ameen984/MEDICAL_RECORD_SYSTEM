@@ -2,6 +2,7 @@ import { Response } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import Patient from '../models/Patient';
+import TokenBlacklist from '../models/TokenBlacklist';
 import { AuthRequest } from '../middleware/auth';
 import { createActivityLog } from './activityController';
 import { sendEmail } from '../utils/email';
@@ -293,29 +294,42 @@ export const forgotPassword = async (req: AuthRequest, res: Response) => {
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
 
-        await sendEmail({
-            to: user.email!,
-            subject: 'MediCare — Password Reset Request',
-            html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2 style="color: #4f46e5;">Password Reset Request</h2>
-                    <p>Hi ${user.name},</p>
-                    <p>We received a request to reset your password. Click the button below to choose a new one:</p>
-                    <p style="margin: 32px 0;">
-                        <a href="${resetUrl}"
-                           style="background-color: #4f46e5; color: white; padding: 12px 24px;
-                                  text-decoration: none; border-radius: 8px; font-weight: bold;">
-                            Reset My Password
-                        </a>
-                    </p>
-                    <p>Or copy this link into your browser:</p>
-                    <p style="word-break: break-all; color: #6b7280;">${resetUrl}</p>
-                    <p style="color: #9ca3af; font-size: 13px; margin-top: 32px;">
-                        This link expires in 10 minutes. If you did not request a password reset, you can safely ignore this email.
-                    </p>
-                </div>
-            `,
-        });
+        try {
+            await sendEmail({
+                to: user.email!,
+                subject: 'MediCare — Password Reset Request',
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #4f46e5;">Password Reset Request</h2>
+                        <p>Hi ${user.name},</p>
+                        <p>We received a request to reset your password. Click the button below to choose a new one:</p>
+                        <p style="margin: 32px 0;">
+                            <a href="${resetUrl}"
+                               style="background-color: #4f46e5; color: white; padding: 12px 24px;
+                                      text-decoration: none; border-radius: 8px; font-weight: bold;">
+                                Reset My Password
+                            </a>
+                        </p>
+                        <p>Or copy this link into your browser:</p>
+                        <p style="word-break: break-all; color: #6b7280;">${resetUrl}</p>
+                        <p style="color: #9ca3af; font-size: 13px; margin-top: 32px;">
+                            This link expires in 10 minutes. If you did not request a password reset, you can safely ignore this email.
+                        </p>
+                    </div>
+                `,
+            });
+        } catch (emailError: any) {
+            // Email delivery failed — clear the token so the DB doesn't accumulate stale entries
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpire = undefined;
+            await user.save({ validateBeforeSave: false });
+
+            console.error('[FORGOT-PASSWORD] Email send failed:', emailError.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Email could not be sent. Please check your email configuration or try again later.',
+            });
+        }
 
         res.status(200).json({
             success: true,
@@ -470,4 +484,33 @@ export const disableMfa = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ success: false, message: err.message });
     }
 }
+
+// @desc    Logout — blacklist current token server-side
+// @route   POST /api/auth/logout
+// @access  Private
+export const logoutUser = async (req: AuthRequest, res: Response) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (token) {
+            const decoded = jwt.decode(token) as { exp?: number } | null;
+            const expiresAt = decoded?.exp
+                ? new Date(decoded.exp * 1000)
+                : new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+            await TokenBlacklist.create({ token, expiresAt });
+        }
+
+        await createActivityLog({
+            user: req.user!._id,
+            userName: req.user!.name,
+            hospitalId: req.user!.hospitalIds?.[0] || null,
+            action: 'LOGOUT',
+            details: `User logged out`,
+        });
+
+        res.status(200).json({ success: true, message: 'Logged out successfully' });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
 

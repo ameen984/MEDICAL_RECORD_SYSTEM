@@ -1,58 +1,46 @@
+import { useState, useEffect, useRef } from 'react';
 import { LogOut, Bell, Search, Building2, ChevronDown, CheckCircle2, ShieldAlert, FileText, Settings2 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout, setActiveHospital } from '../../features/auth/authSlice';
 import { useNavigate } from 'react-router-dom';
 import { useGetHospitalsQuery } from '../../features/admin/hospitalsApi';
+import { useLogoutUserMutation } from '../../features/auth/authApi';
+import { useGetNotificationsQuery, useMarkAllReadMutation, useMarkOneReadMutation } from '../../features/notifications/notificationsApi';
+import type { Notification } from '../../features/notifications/notificationsApi';
 import { apiSlice } from '../../app/apiSlice';
 import type { RootState } from '../../app/store';
 import type { Hospital } from '../../types';
 import { useSocket } from '../../hooks/useSocket';
-import { useState, useEffect, useRef } from 'react';
-
-interface Notification {
-    id: string;
-    type: 'report' | 'consent' | 'security';
-    message: string;
-    time: string;
-    read: boolean;
-}
 
 const Navbar = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user, activeHospitalId } = useSelector((state: RootState) => state.auth);
   const { data: hospitals = [] } = useGetHospitalsQuery();
-  
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
+  const [logoutUserApi] = useLogoutUserMutation();
+  const { data: notifications = [], refetch } = useGetNotificationsQuery();
+  const [markAllReadApi] = useMarkAllReadMutation();
+  const [markOneReadApi] = useMarkOneReadMutation();
+
   const socket = useSocket();
 
-  // Listen for socket events
+  // Refetch persisted notifications when a socket event arrives
   useEffect(() => {
       if (!socket) return;
-
-      const addNotification = (type: Notification['type'], data: { message: string }) => {
-          setNotifications(prev => [{
-              id: Date.now().toString() + Math.random(),
-              type,
-              message: data.message,
-              time: new Date().toISOString(),
-              read: false
-          }, ...prev]);
-      };
-
-      socket.on('NEW_REPORT', (data) => addNotification('report', data));
-      socket.on('CONSENT_CHANGED', (data) => addNotification('consent', data));
-      socket.on('SECURITY_ALERT', (data) => addNotification('security', data));
-
+      const handler = () => refetch();
+      socket.on('NEW_REPORT', handler);
+      socket.on('CONSENT_CHANGED', handler);
+      socket.on('SECURITY_ALERT', handler);
       return () => {
-          socket.off('NEW_REPORT');
-          socket.off('CONSENT_CHANGED');
-          socket.off('SECURITY_ALERT');
+          socket.off('NEW_REPORT', handler);
+          socket.off('CONSENT_CHANGED', handler);
+          socket.off('SECURITY_ALERT', handler);
       };
-  }, [socket]);
+  }, [socket, refetch]);
 
   // Click outside to close notifications
   useEffect(() => {
@@ -61,41 +49,45 @@ const Navbar = () => {
         setShowNotifications(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter((n: Notification) => !n.read).length;
 
-  const markAllRead = () => {
-      setNotifications(prev => prev.map(n => ({...n, read: true})));
+  const handleMarkAllRead = async () => {
+      await markAllReadApi();
   };
-  
+
+  const handleMarkOneRead = async (id: string) => {
+      await markOneReadApi(id);
+  };
+
   // Filter available hospitals based on user's authorized IDs
   const userHospitalIds = user?.hospitalIds?.map(h => typeof h === 'object' ? String((h as any)._id || h.id) : String(h)) || [];
-  const authorizedHospitals = user?.role === 'super_admin' 
-    ? hospitals 
+  const authorizedHospitals = user?.role === 'super_admin'
+    ? hospitals
     : hospitals.filter((h: Hospital) => userHospitalIds.includes(String(h._id || h.id)));
 
   const currentHospital = hospitals.find((h: Hospital) => String(h._id || h.id) === activeHospitalId);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await logoutUserApi().unwrap(); } catch (_) { /* best-effort */ }
     dispatch(logout());
     navigate('/login');
   };
 
   const handleContextChange = (hospitalId: string) => {
     dispatch(setActiveHospital(hospitalId));
-    // Immediately invalidate all tags so the UI components refetch with new headers
     dispatch(apiSlice.util.invalidateTags(['Users', 'Patients', 'Records', 'Reports', 'Appointments', 'Activity']));
   };
 
   const getNotificationIcon = (type: string) => {
-      switch(type) {
+      switch (type) {
           case 'security': return <ShieldAlert className="w-5 h-5 text-red-500" />;
-          case 'report': return <FileText className="w-5 h-5 text-blue-500" />;
-          case 'consent': return <Settings2 className="w-5 h-5 text-emerald-500" />;
-          default: return <Bell className="w-5 h-5 text-gray-500" />;
+          case 'report':   return <FileText className="w-5 h-5 text-blue-500" />;
+          case 'consent':  return <Settings2 className="w-5 h-5 text-emerald-500" />;
+          default:         return <Bell className="w-5 h-5 text-gray-500" />;
       }
   };
 
@@ -116,7 +108,7 @@ const Navbar = () => {
         </div>
 
       <div className="flex items-center space-x-3 sm:space-x-4">
-        
+
         {/* Context Selector for Admins/Doctors with multiple facilities */}
         {authorizedHospitals.length > 1 && user?.role !== 'patient' && user?.role !== 'super_admin' && (
             <div className="relative group/context flex flex-col justify-center border-r border-gray-200 pr-4 mr-2">
@@ -142,8 +134,8 @@ const Navbar = () => {
                                 <button
                                     key={String(h._id || h.id)}
                                     className={`w-full text-left px-3 py-2 text-sm rounded-lg flex items-center justify-between group/btn transition-colors ${
-                                        isSelected 
-                                            ? 'bg-primary-50 text-primary-700 font-semibold' 
+                                        isSelected
+                                            ? 'bg-primary-50 text-primary-700 font-semibold'
                                             : 'bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                                     }`}
                                     onClick={() => handleContextChange(String(h._id || h.id))}
@@ -159,7 +151,7 @@ const Navbar = () => {
         )}
 
         <div className="relative" ref={notifRef}>
-            <button 
+            <button
                 className="p-2 text-gray-400 hover:text-gray-500 relative transition-transform hover:scale-105 active:scale-95"
                 onClick={() => setShowNotifications(!showNotifications)}
             >
@@ -177,7 +169,7 @@ const Navbar = () => {
                     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50">
                         <h3 className="font-semibold text-gray-800">Notifications</h3>
                         {unreadCount > 0 && (
-                            <button onClick={markAllRead} className="text-xs text-primary-600 hover:text-primary-700 font-medium">
+                            <button onClick={handleMarkAllRead} className="text-xs text-primary-600 hover:text-primary-700 font-medium">
                                 Mark all as read
                             </button>
                         )}
@@ -192,15 +184,19 @@ const Navbar = () => {
                             </div>
                         ) : (
                             <div className="divide-y divide-gray-50">
-                                {notifications.map(notif => (
-                                    <div key={notif.id} className={`p-4 hover:bg-gray-50 transition-colors flex gap-3 ${notif.read ? 'opacity-60' : 'bg-blue-50/20'}`}>
+                                {notifications.map((notif: Notification) => (
+                                    <div
+                                        key={notif._id}
+                                        onClick={() => !notif.read && handleMarkOneRead(notif._id)}
+                                        className={`p-4 hover:bg-gray-50 transition-colors flex gap-3 cursor-pointer ${notif.read ? 'opacity-60' : 'bg-blue-50/20'}`}
+                                    >
                                         <div className="flex-shrink-0 mt-0.5">
                                             {getNotificationIcon(notif.type)}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm text-gray-800 leading-snug">{notif.message}</p>
                                             <p className="text-xs text-gray-500 mt-1">
-                                                {new Date(notif.time).toLocaleTimeString([], {timeStyle: 'short'})}
+                                                {new Date(notif.createdAt).toLocaleTimeString([], { timeStyle: 'short' })}
                                             </p>
                                         </div>
                                         {!notif.read && (

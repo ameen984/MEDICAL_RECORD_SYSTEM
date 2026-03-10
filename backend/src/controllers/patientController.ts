@@ -4,6 +4,7 @@ import Patient from '../models/Patient';
 import MedicalRecord from '../models/MedicalRecord';
 import { AuthRequest } from '../middleware/auth';
 import { createActivityLog } from './activityController';
+import { notifyRole } from '../services/notificationService';
 import PDFDocument from 'pdfkit';
 
 // @desc    Get all patients
@@ -106,11 +107,9 @@ export const getPatientHistory = async (req: AuthRequest, res: Response) => {
                     targetUser: req.params.id,
                 });
 
-                const { broadcastToRole } = require('../services/socketService');
-                broadcastToRole('super_admin', 'SECURITY_ALERT', {
-                    message: `SECURITY ALERT: ${req.user?.name} attempted unauthorized access on patient ${req.params.id}`,
-                    time: new Date()
-                });
+                await notifyRole('super_admin', 'security',
+                    `SECURITY ALERT: ${req.user?.name} attempted unauthorized access on patient ${req.params.id}`
+                );
 
                 return res.status(403).json({
                     success: false,
@@ -210,12 +209,10 @@ export const updatePatient = async (req: AuthRequest, res: Response) => {
         // Only broadcast when consent-related fields actually changed
         // NOTE: This is a global broadcast to all connected doctors — intentional by design
         if (sharingPreference || approvedHospitals) {
-            const { broadcastToRole } = require('../services/socketService');
-            broadcastToRole('doctor', 'CONSENT_CHANGED', {
-                message: `Patient ${user.name} updated their sharing preferences.`,
-                patientId: user._id,
-                time: new Date()
-            });
+            await notifyRole('doctor', 'consent',
+                `Patient ${user.name} updated their sharing preferences.`,
+                { patientId: user._id }
+            );
         }
 
         res.status(200).json({

@@ -1,0 +1,39 @@
+  console.error
+    Failed to create activity log: Error: ActivityLog validation failed: action: `RECORD_ACCESS` is not a valid enum value for path `action`.
+        at ValidationError.inspect (C:\Users\alame\Desktop\atnigravity\medical-record-system\backend\node_modules\mongoose\lib\error\validation.js:52:26)
+        at formatValue (node:internal/util/inspect:877:19)
+        at inspect (node:internal/util/inspect:404:10)
+        at formatWithOptionsInternal (node:internal/util/inspect:2407:40)
+        at format (node:internal/util/inspect:2264:10)
+        at console.error (C:\Users\alame\Desktop\atnigravity\medical-record-system\backend\node_modules\@jest\console\build\index.js:288:48)
+        at createActivityLog (C:\Users\alame\Desktop\atnigravity\medical-record-system\backend\src\controllers\activityController.ts:42:17)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5)
+        at exportPatientHistory (C:\Users\alame\Desktop\atnigravity\medical-record-system\backend\src\controllers\patientController.ts:225:9) {
+      errors: {
+        action: ValidatorError: `RECORD_ACCESS` is not a valid enum value for path `action`.
+            at validate (C:\Users\alame\Desktop\atnigravity\medical-record-system\backend\node_modules\mongoose\lib\schemaType.js:1443:13)
+            at SchemaString.SchemaType.doValidate (C:\Users\alame\Desktop\atnigravity\medical-record-system\backend\node_modules\mongoose\lib\schemaType.js:1427:7)
+            at C:\Users\alame\Desktop\atnigravity\medical-record-system\backend\node_modules\mongoose\lib\document.js:3126:18
+            at processTicksAndRejections (node:internal/process/task_queues:85:11) {
+          properties: [Object],
+          kind: 'enum',
+          path: 'action',
+          value: 'RECORD_ACCESS',
+          reason: undefined,
+          [Symbol(mongoose#validatorError)]: true
+        }
+      },
+      _message: 'ActivityLog validation failed'
+    }
+
+    [0m [90m 40 |[39m         [36mawait[39m [33mActivityLog[39m[33m.[39mcreate(logData)[33m;[39m
+     [90m 41 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 42 |[39m         console[33m.[39merror([32m'Failed to create activity log:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m                 [31m[1m^[22m[39m
+     [90m 43 |[39m     }
+     [90m 44 |[39m }[33m;[39m
+     [90m 45 |[39m[0m
+
+      at createActivityLog (src/controllers/activityController.ts:42:17)
+      at exportPatientHistory (src/controllers/patientController.ts:225:9)
+

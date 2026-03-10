@@ -1,11 +1,12 @@
 import express from 'express';
-import { register, login, getMe, changePassword, forgotPassword, resetPassword, setupMfa, verifyMfa, disableMfa } from '../controllers/authController';
+import { register, login, getMe, changePassword, forgotPassword, resetPassword, setupMfa, verifyMfa, disableMfa, logoutUser } from '../controllers/authController';
 import { protect } from '../middleware/auth';
 
 const router = express.Router();
 
 router.post('/register', register);
 router.post('/login', login);
+router.post('/logout', protect, logoutUser);
 router.get('/me', protect, getMe);
 router.put('/password', protect, changePassword);
 router.post('/forgotpassword', forgotPassword);

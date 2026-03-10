@@ -5,6 +5,7 @@ import Report from '../models/Report';
 import User from '../models/User';
 import Patient from '../models/Patient';
 import { AuthRequest } from '../middleware/auth';
+import { notifyRole, notifyUser } from '../services/notificationService';
 
 // @desc    Get reports
 // @route   GET /api/reports
@@ -132,23 +133,17 @@ export const uploadReport = async (req: AuthRequest, res: Response) => {
             .populate('doctorId', 'name email')
             .populate('uploadedBy', 'name email');
 
-        // Trigger Real-Time Socket Notifications
-        const { broadcastToRole, emitToUser } = require('../services/socketService');
+        // Trigger Real-Time Socket Notifications + persist to DB
         if (req.user?.role === 'patient') {
-            // Patient uploaded it -> Notify doctors
-            broadcastToRole('doctor', 'NEW_REPORT', {
-                message: `Patient ${req.user?.name} uploaded a new lab report: ${title}`,
-                patientId: targetPatientId,
-                reportId: report._id,
-                time: new Date()
-            });
+            await notifyRole('doctor', 'report',
+                `Patient ${req.user?.name} uploaded a new lab report: ${title}`,
+                { patientId: targetPatientId, reportId: report._id }
+            );
         } else {
-            // Doctor uploaded it -> Notify patient
-            emitToUser(targetPatientId.toString(), 'NEW_REPORT', {
-                message: `A new lab report was uploaded to your profile: ${title}`,
-                reportId: report._id,
-                time: new Date()
-            });
+            await notifyUser(targetPatientId, 'report',
+                `A new lab report was uploaded to your profile: ${title}`,
+                { reportId: report._id }
+            );
         }
 
         res.status(201).json({

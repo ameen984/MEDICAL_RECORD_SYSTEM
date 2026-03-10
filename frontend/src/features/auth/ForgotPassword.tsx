@@ -28,11 +28,13 @@ export default function ForgotPassword() {
                     </div>
                 </div>
                 <h2 className="mt-6 text-center text-3xl font-black text-gray-900 tracking-tight">
-                    Reset your password
+                    {isSubmitted ? 'Check your email' : 'Reset your password'}
                 </h2>
-                <p className="mt-2 text-center text-sm text-gray-600">
-                    Enter your email address and we'll send you a link to reset your password.
-                </p>
+                {!isSubmitted && (
+                    <p className="mt-2 text-center text-sm text-gray-600">
+                        Enter your email address and we'll send you a link to reset your password.
+                    </p>
+                )}
             </div>
 
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
@@ -43,7 +45,6 @@ export default function ForgotPassword() {
                                 <CheckCircle className="w-8 h-8" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold text-gray-900">Check your email</h3>
                                 <p className="mt-2 text-sm text-gray-500">
                                     We've sent password reset instructions to <strong>{email}</strong>
                                 </p>
@@ -95,12 +96,14 @@ export default function ForgotPassword() {
                         </form>
                     )}
                     
-                    <div className="mt-6 text-center">
-                        <Link to="/login" className="inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-500">
-                            <ArrowLeft className="w-4 h-4 mr-1" />
-                            Back to login
-                        </Link>
-                    </div>
+                    {!isSubmitted && (
+                        <div className="mt-6 text-center">
+                            <Link to="/login" className="inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-500">
+                                <ArrowLeft className="w-4 h-4 mr-1" />
+                                Back to login
+                            </Link>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

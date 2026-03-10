@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import User, { IUser } from '../models/User';
+import TokenBlacklist from '../models/TokenBlacklist';
 
 export interface AuthRequest extends Request {
     user?: IUser;
@@ -24,6 +25,12 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { id: string };
+
+        // Reject blacklisted (logged-out) tokens
+        const isBlacklisted = await TokenBlacklist.exists({ token });
+        if (isBlacklisted) {
+            return res.status(401).json({ success: false, message: 'Token has been invalidated. Please log in again.' });
+        }
 
         const user = await User.findById(decoded.id).select('+password');
 
