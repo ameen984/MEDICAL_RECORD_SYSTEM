@@ -10,7 +10,8 @@
       "Bash(cat c:/Users/alame/Desktop/atnigravity/medical-record-system/backend/src/routes/*.ts)",
       "Bash(sed \"s/router\\\\.//\")",
       "Bash(ls -la c:/Users/alame/Desktop/atnigravity/medical-record-system/backend/*.js c:/Users/alame/Desktop/atnigravity/medical-record-system/backend/*.mjs)",
-      "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"feat: add server-side logout, notification persistence, and fix email timeout\")"
+      "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"feat: add server-side logout, notification persistence, and fix email timeout\")",
+      "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"fix: use SMTP port 465 for production \\(Render blocks 587\\)\")"
     ]
   }
 }
