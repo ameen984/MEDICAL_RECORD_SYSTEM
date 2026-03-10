@@ -20,7 +20,8 @@
       "Bash(npm install @react-oauth/google --save)",
       "Bash(python3 -c \":*)",
       "Bash(bash skills/git-pushing/scripts/smart_commit.sh \"feat: add Google OAuth and phone OTP to signup page, update env examples\")",
-      "Bash(bash /c/Users/alame/.claude/skills/git-pushing/scripts/smart_commit.sh \"feat: add Google OAuth and phone OTP to signup page, update env examples\")"
+      "Bash(bash /c/Users/alame/.claude/skills/git-pushing/scripts/smart_commit.sh \"feat: add Google OAuth and phone OTP to signup page, update env examples\")",
+      "Bash(bash /c/Users/alame/.claude/skills/git-pushing/scripts/smart_commit.sh \"feat: replace phone OTP with email OTP login \\(free, uses Resend\\)\")"
     ]
   }
 }

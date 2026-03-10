@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, getMe, changePassword, forgotPassword, resetPassword, setupMfa, verifyMfa, disableMfa, logoutUser, googleAuth, sendPhoneOtp, verifyPhoneOtp } from '../controllers/authController';
+import { register, login, getMe, changePassword, forgotPassword, resetPassword, setupMfa, verifyMfa, disableMfa, logoutUser, googleAuth, sendPhoneOtp, verifyPhoneOtp, sendEmailOtp, verifyEmailOtp } from '../controllers/authController';
 import { protect } from '../middleware/auth';
 
 const router = express.Router();
@@ -18,6 +18,10 @@ router.post('/google', googleAuth);
 // Phone OTP
 router.post('/phone/send-otp', sendPhoneOtp);
 router.post('/phone/verify-otp', verifyPhoneOtp);
+
+// Email OTP (passwordless login)
+router.post('/email/send-otp', sendEmailOtp);
+router.post('/email/verify-otp', verifyEmailOtp);
 
 router.post('/mfa/setup', protect, setupMfa);
 router.post('/mfa/verify', protect, verifyMfa);

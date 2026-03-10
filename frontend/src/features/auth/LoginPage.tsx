@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useLoginMutation, useGoogleAuthMutation, useSendPhoneOtpMutation, useVerifyPhoneOtpMutation } from './authApi';
+import { useLoginMutation, useGoogleAuthMutation, useSendEmailOtpMutation, useVerifyEmailOtpMutation } from './authApi';
 import { useDispatch, useSelector } from 'react-redux';
 import { setCredentials } from './authSlice';
 import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import type { RootState } from '../../app/store.ts';
-import { Lock, Mail, Phone, Activity, ShieldAlert, MessageSquare } from 'lucide-react';
+import { Lock, Mail, Activity, ShieldAlert, MessageSquare } from 'lucide-react';
 import Loader from '../../components/Loader.tsx';
 
-type Tab = 'password' | 'phone';
+type Tab = 'password' | 'email-otp';
 
 const LoginPage = () => {
   const [tab, setTab] = useState<Tab>('password');
@@ -16,15 +16,15 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [mfaToken, setMfaToken] = useState('');
   const [requiresMfa, setRequiresMfa] = useState(false);
-  const [phone, setPhone] = useState('');
+  const [otpEmail, setOtpEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [login, { isLoading }] = useLoginMutation();
   const [googleAuth, { isLoading: isGoogleLoading }] = useGoogleAuthMutation();
-  const [sendOtp, { isLoading: isSendingOtp }] = useSendPhoneOtpMutation();
-  const [verifyOtp, { isLoading: isVerifyingOtp }] = useVerifyPhoneOtpMutation();
+  const [sendOtp, { isLoading: isSendingOtp }] = useSendEmailOtpMutation();
+  const [verifyOtp, { isLoading: isVerifyingOtp }] = useVerifyEmailOtpMutation();
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -56,14 +56,14 @@ const LoginPage = () => {
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault(); clearError();
-    try { await sendOtp(phone).unwrap(); setOtpSent(true); }
-    catch (err: any) { setErrorMsg(err?.data?.message || 'Failed to send OTP. Make sure this number is registered.'); }
+    try { await sendOtp(otpEmail).unwrap(); setOtpSent(true); }
+    catch (err: any) { setErrorMsg(err?.data?.message || 'Failed to send OTP. Make sure this email is registered.'); }
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault(); clearError();
     try {
-      const data = await verifyOtp({ phone, otp }).unwrap();
+      const data = await verifyOtp({ email: otpEmail, otp }).unwrap();
       dispatch(setCredentials(data)); navigate('/dashboard');
     } catch (err: any) { setErrorMsg(err?.data?.message || 'Invalid or expired OTP'); }
   };
@@ -100,12 +100,12 @@ const LoginPage = () => {
 
         {/* Tab switcher */}
         <div className="flex rounded-lg border border-gray-200 p-1 bg-gray-50 gap-1">
-          {(['password', 'phone'] as Tab[]).map(t => (
+          {(['password', 'email-otp'] as Tab[]).map(t => (
             <button key={t} type="button" onClick={() => { setTab(t); clearError(); setOtpSent(false); }}
               className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${tab === t ? 'bg-white shadow-sm text-primary-700' : 'text-gray-500 hover:text-gray-700'}`}>
               {t === 'password'
-                ? <span className="flex items-center justify-center gap-1.5"><Mail className="h-3.5 w-3.5" />Email / Phone</span>
-                : <span className="flex items-center justify-center gap-1.5"><Phone className="h-3.5 w-3.5" />Phone OTP</span>}
+                ? <span className="flex items-center justify-center gap-1.5"><Lock className="h-3.5 w-3.5" />Password</span>
+                : <span className="flex items-center justify-center gap-1.5"><Mail className="h-3.5 w-3.5" />Email OTP</span>}
             </button>
           ))}
         </div>
@@ -145,30 +145,31 @@ const LoginPage = () => {
           </form>
         )}
 
-        {tab === 'phone' && (
+        {tab === 'email-otp' && (
           <form onSubmit={otpSent ? handleVerifyOtp : handleSendOtp} className="space-y-4">
             <div className="relative">
-              <Phone className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-              <input type="tel" required className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50"
-                placeholder="+1234567890 (with country code)" value={phone} disabled={otpSent}
-                onChange={e => { setPhone(e.target.value); clearError(); }} />
+              <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+              <input type="email" required className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50"
+                placeholder="Enter your email address" value={otpEmail} disabled={otpSent}
+                onChange={e => { setOtpEmail(e.target.value); clearError(); }} />
             </div>
             {otpSent && (
               <div className="relative">
                 <MessageSquare className="absolute left-3 top-3 h-5 w-5 text-primary-400" />
                 <input type="text" required maxLength={6}
                   className="w-full pl-10 pr-3 py-3 border border-primary-300 rounded-lg text-sm bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-500 tracking-widest font-mono text-center text-lg"
-                  placeholder="Enter 6-digit OTP" value={otp} onChange={e => { setOtp(e.target.value); clearError(); }} />
+                  placeholder="Enter 6-digit code" value={otp} onChange={e => { setOtp(e.target.value); clearError(); }} />
+                <p className="text-xs text-gray-400 text-center mt-1">Check your inbox — code expires in 10 minutes</p>
               </div>
             )}
             <button type="submit" disabled={isSendingOtp || isVerifyingOtp}
               className="w-full py-3 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center justify-center">
-              {(isSendingOtp || isVerifyingOtp) ? <Loader size="sm" color="white" /> : otpSent ? 'Verify OTP' : 'Send OTP'}
+              {(isSendingOtp || isVerifyingOtp) ? <Loader size="sm" color="white" /> : otpSent ? 'Verify & Sign In' : 'Send Code'}
             </button>
             {otpSent && (
               <button type="button" onClick={() => { setOtpSent(false); setOtp(''); clearError(); }}
                 className="w-full text-center text-sm text-gray-500 hover:text-gray-700">
-                Change number
+                Use a different email
               </button>
             )}
           </form>

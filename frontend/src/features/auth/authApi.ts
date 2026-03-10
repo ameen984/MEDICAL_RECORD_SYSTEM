@@ -48,6 +48,15 @@ export const authApi = apiSlice.injectEndpoints({
             }),
             transformResponse: (res: any) => res.data,
         }),
+        sendEmailOtp: builder.mutation({
+            query: (email: string) => ({ url: '/auth/email/send-otp', method: 'POST', body: { email } }),
+        }),
+        verifyEmailOtp: builder.mutation({
+            query: ({ email, otp }: { email: string; otp: string }) => ({
+                url: '/auth/email/verify-otp', method: 'POST', body: { email, otp },
+            }),
+            transformResponse: (res: any) => res.data,
+        }),
     }),
 });
 
@@ -60,4 +69,6 @@ export const {
     useGoogleAuthMutation,
     useSendPhoneOtpMutation,
     useVerifyPhoneOtpMutation,
+    useSendEmailOtpMutation,
+    useVerifyEmailOtpMutation,
 } = authApi;

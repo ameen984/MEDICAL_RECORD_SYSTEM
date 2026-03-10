@@ -613,6 +613,114 @@ export const googleAuth = async (req: AuthRequest, res: Response) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Email OTP (passwordless login)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// @desc    Send OTP to email address
+// @route   POST /api/auth/email/send-otp
+// @access  Public
+export const sendEmailOtp = async (req: AuthRequest, res: Response) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ success: false, message: 'Email address required' });
+
+        const user = await User.findOne({ email: email.toLowerCase().trim() });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'No account found with this email. Please register first.' });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+        const otpExpire = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        await User.updateOne({ _id: user._id }, { emailOtp: otpHash, emailOtpExpire: otpExpire });
+
+        await sendEmail({
+            to: user.email!,
+            subject: 'MediCare — Your Login Code',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #4f46e5;">Your One-Time Login Code</h2>
+                    <p>Hi ${user.name},</p>
+                    <p>Use the code below to sign in to MediCare. It expires in <strong>10 minutes</strong>.</p>
+                    <div style="margin: 32px 0; text-align: center;">
+                        <span style="display: inline-block; background: #f3f4f6; border: 2px dashed #4f46e5;
+                                     padding: 16px 40px; border-radius: 12px; font-size: 36px;
+                                     font-weight: bold; letter-spacing: 10px; color: #1e1b4b;">
+                            ${otp}
+                        </span>
+                    </div>
+                    <p style="color: #9ca3af; font-size: 13px;">If you did not request this code, you can safely ignore this email.</p>
+                </div>
+            `,
+        });
+
+        console.log(`[EMAIL-OTP] Sent to ${email}`);
+        res.status(200).json({ success: true, message: 'OTP sent to your email address' });
+    } catch (error: any) {
+        console.error('[EMAIL-OTP]', error.message);
+        res.status(500).json({ success: false, message: 'Failed to send OTP. Please try again.' });
+    }
+};
+
+// @desc    Verify email OTP and log user in
+// @route   POST /api/auth/email/verify-otp
+// @access  Public
+export const verifyEmailOtp = async (req: AuthRequest, res: Response) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) return res.status(400).json({ success: false, message: 'Email and OTP required' });
+
+        const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+
+        const user = await User.findOne({
+            email: email.toLowerCase().trim(),
+            emailOtp: otpHash,
+            emailOtpExpire: { $gt: new Date() },
+        }).select('+emailOtp');
+
+        if (!user) {
+            return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+        }
+
+        await User.updateOne(
+            { _id: user._id },
+            { emailVerified: true, emailOtp: undefined, emailOtpExpire: undefined }
+        );
+
+        const token = generateToken(user._id.toString());
+
+        await createActivityLog({
+            user: user._id,
+            userName: user.name,
+            hospitalId: user.hospitalIds?.[0] || null,
+            action: 'LOGIN',
+            details: `User logged in via Email OTP`,
+        });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role,
+                    phone: user.phone,
+                    hospitalIds: user.hospitalIds,
+                    isMfaEnabled: user.isMfaEnabled,
+                    emailVerified: true,
+                    phoneVerified: user.phoneVerified,
+                },
+                token,
+            },
+        });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Phone OTP verification
 // ─────────────────────────────────────────────────────────────────────────────
 

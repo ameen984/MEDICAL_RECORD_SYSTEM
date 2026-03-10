@@ -21,6 +21,9 @@ export interface IUser extends Document {
     phoneVerified: boolean;
     phoneOtp?: string;
     phoneOtpExpire?: Date;
+    // Email OTP (passwordless login)
+    emailOtp?: string;
+    emailOtpExpire?: Date;
     createdAt: Date;
     comparePassword(candidatePassword: string): Promise<boolean>;
     getResetPasswordToken(): string;
@@ -73,6 +76,8 @@ const userSchema = new Schema<IUser>({
     phoneVerified: { type: Boolean, default: false },
     phoneOtp: { type: String, select: false },
     phoneOtpExpire: Date,
+    emailOtp: { type: String, select: false },
+    emailOtpExpire: Date,
     createdAt: {
         type: Date,
         default: Date.now,
