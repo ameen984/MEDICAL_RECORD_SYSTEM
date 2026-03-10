@@ -4,7 +4,7 @@ import crypto from 'crypto';
 
 export interface IUser extends Document {
     name: string;
-    email: string;
+    email?: string;
     password: string;
     role: 'super_admin' | 'admin' | 'doctor' | 'patient';
     isActive: boolean;
@@ -14,6 +14,13 @@ export interface IUser extends Document {
     mfaSecret?: string;
     resetPasswordToken?: string;
     resetPasswordExpire?: Date;
+    // Google OAuth
+    googleId?: string;
+    emailVerified: boolean;
+    // Phone OTP verification
+    phoneVerified: boolean;
+    phoneOtp?: string;
+    phoneOtpExpire?: Date;
     createdAt: Date;
     comparePassword(candidatePassword: string): Promise<boolean>;
     getResetPasswordToken(): string;
@@ -35,9 +42,8 @@ const userSchema = new Schema<IUser>({
     },
     password: {
         type: String,
-        required: [true, 'Please provide a password'],
         minlength: 6,
-        select: false, // Don't return password by default
+        select: false,
     },
     role: {
         type: String,
@@ -58,25 +64,26 @@ const userSchema = new Schema<IUser>({
         sparse: true,
         trim: true,
     },
-    isMfaEnabled: {
-        type: Boolean,
-        default: false,
-    },
+    isMfaEnabled: { type: Boolean, default: false },
     mfaSecret: String,
     resetPasswordToken: String,
     resetPasswordExpire: Date,
+    googleId: { type: String, unique: true, sparse: true },
+    emailVerified: { type: Boolean, default: false },
+    phoneVerified: { type: Boolean, default: false },
+    phoneOtp: { type: String, select: false },
+    phoneOtpExpire: Date,
     createdAt: {
         type: Date,
         default: Date.now,
     },
 });
 
-// Hash password before saving
+// Hash password before saving (skip for Google OAuth users who have no password)
 userSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) {
+    if (!this.password || !this.isModified('password')) {
         return next();
     }
-
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
     next();

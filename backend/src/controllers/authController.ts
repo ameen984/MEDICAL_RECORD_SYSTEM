@@ -1,5 +1,7 @@
 import { Response } from 'express';
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
+import twilio from 'twilio';
 import User from '../models/User';
 import Patient from '../models/Patient';
 import TokenBlacklist from '../models/TokenBlacklist';
@@ -509,6 +511,202 @@ export const logoutUser = async (req: AuthRequest, res: Response) => {
         });
 
         res.status(200).json({ success: true, message: 'Logged out successfully' });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Google OAuth
+// ─────────────────────────────────────────────────────────────────────────────
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// @desc    Sign in / sign up with Google ID token
+// @route   POST /api/auth/google
+// @access  Public
+export const googleAuth = async (req: AuthRequest, res: Response) => {
+    try {
+        const { idToken } = req.body;
+        if (!idToken) return res.status(400).json({ success: false, message: 'Google ID token required' });
+
+        if (!process.env.GOOGLE_CLIENT_ID) {
+            return res.status(500).json({ success: false, message: 'Google OAuth not configured on this server' });
+        }
+
+        const ticket = await googleClient.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+
+        const payload = ticket.getPayload();
+        if (!payload || !payload.email) {
+            return res.status(400).json({ success: false, message: 'Invalid Google token' });
+        }
+
+        const { sub: googleId, email, name, email_verified } = payload;
+
+        // Find existing user by googleId or email
+        let user = await User.findOne({ $or: [{ googleId }, { email }] });
+
+        if (user) {
+            // Link Google ID if signing in via email match for the first time
+            if (!user.googleId) {
+                await User.updateOne({ _id: user._id }, { googleId, emailVerified: !!email_verified });
+                user.googleId = googleId;
+                user.emailVerified = !!email_verified;
+            }
+        } else {
+            // New user — auto-register as patient
+            user = await User.create({
+                name: name || email!.split('@')[0],
+                email,
+                googleId,
+                emailVerified: !!email_verified,
+                role: 'patient',
+            });
+            await Patient.create({ userId: user._id });
+            await createActivityLog({
+                user: user._id,
+                userName: user.name,
+                hospitalId: null,
+                action: 'SIGNUP',
+                details: `New patient account via Google: ${email}`,
+            });
+        }
+
+        if (!user.isActive) {
+            return res.status(403).json({ success: false, message: 'Account has been suspended' });
+        }
+
+        const token = generateToken(user._id.toString());
+
+        await createActivityLog({
+            user: user._id,
+            userName: user.name,
+            hospitalId: user.hospitalIds?.[0] || null,
+            action: 'LOGIN',
+            details: `User logged in via Google`,
+        });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role,
+                    phone: user.phone,
+                    hospitalIds: user.hospitalIds,
+                    isMfaEnabled: user.isMfaEnabled,
+                    emailVerified: user.emailVerified,
+                    phoneVerified: user.phoneVerified,
+                },
+                token,
+            },
+        });
+    } catch (error: any) {
+        console.error('[GOOGLE-AUTH]', error.message);
+        res.status(500).json({ success: false, message: 'Google authentication failed' });
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phone OTP verification
+// ─────────────────────────────────────────────────────────────────────────────
+
+const getTwilioClient = () => {
+    const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN } = process.env;
+    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) return null;
+    return twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+};
+
+// @desc    Send OTP to phone number
+// @route   POST /api/auth/phone/send-otp
+// @access  Public
+export const sendPhoneOtp = async (req: AuthRequest, res: Response) => {
+    try {
+        const { phone } = req.body;
+        if (!phone) return res.status(400).json({ success: false, message: 'Phone number required' });
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+        const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+        const otpExpire = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        // Upsert: update existing user or create a placeholder
+        await User.findOneAndUpdate(
+            { phone },
+            { phoneOtp: otpHash, phoneOtpExpire: otpExpire },
+            { upsert: false }
+        );
+
+        const client = getTwilioClient();
+        if (client) {
+            await client.messages.create({
+                body: `Your MediCare verification code is: ${otp}. Valid for 10 minutes.`,
+                from: process.env.TWILIO_PHONE_NUMBER!,
+                to: phone,
+            });
+            console.log(`[PHONE-OTP] Sent to ${phone}`);
+        } else {
+            // Dev fallback — print to terminal
+            console.log(`[PHONE-OTP DEV] Code for ${phone}: ${otp}`);
+        }
+
+        res.status(200).json({ success: true, message: 'OTP sent to your phone number' });
+    } catch (error: any) {
+        console.error('[PHONE-OTP]', error.message);
+        res.status(500).json({ success: false, message: 'Failed to send OTP' });
+    }
+};
+
+// @desc    Verify phone OTP and mark phone as verified
+// @route   POST /api/auth/phone/verify-otp
+// @access  Public
+export const verifyPhoneOtp = async (req: AuthRequest, res: Response) => {
+    try {
+        const { phone, otp } = req.body;
+        if (!phone || !otp) return res.status(400).json({ success: false, message: 'Phone and OTP required' });
+
+        const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+
+        const user = await User.findOne({
+            phone,
+            phoneOtp: otpHash,
+            phoneOtpExpire: { $gt: new Date() },
+        }).select('+phoneOtp');
+
+        if (!user) {
+            return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+        }
+
+        await User.updateOne(
+            { _id: user._id },
+            { phoneVerified: true, phoneOtp: undefined, phoneOtpExpire: undefined }
+        );
+
+        // If user is fully registered, return a JWT
+        const token = generateToken(user._id.toString());
+
+        res.status(200).json({
+            success: true,
+            message: 'Phone verified successfully',
+            data: {
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role,
+                    phone: user.phone,
+                    hospitalIds: user.hospitalIds,
+                    isMfaEnabled: user.isMfaEnabled,
+                    emailVerified: user.emailVerified,
+                    phoneVerified: true,
+                },
+                token,
+            },
+        });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }
