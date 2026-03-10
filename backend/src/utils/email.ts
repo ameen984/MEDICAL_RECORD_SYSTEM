@@ -22,23 +22,40 @@ export const sendEmail = async ({ to, subject, html }: SendEmailOptions): Promis
         return;
     }
 
+    const port = Number(SMTP_PORT) || 465;
+    const secure = port === 465;
+
+    console.log(`[EMAIL] Attempting to send to ${to} via ${SMTP_HOST}:${port} (secure=${secure})`);
+
     const transporter = nodemailer.createTransport({
         host: SMTP_HOST,
-        port: Number(SMTP_PORT) || 587,
-        secure: Number(SMTP_PORT) === 465,
+        port,
+        secure,
         auth: {
             user: SMTP_USER,
             pass: SMTP_PASS,
         },
-        connectionTimeout: 10_000,  // 10 s to establish TCP connection
-        greetingTimeout:   8_000,   // 8 s for SMTP EHLO greeting
-        socketTimeout:     15_000,  // 15 s of inactivity before aborting
+        tls: {
+            // Required on some cloud hosts where the TLS cert chain isn't fully trusted
+            rejectUnauthorized: false,
+        },
+        connectionTimeout: 10_000,
+        greetingTimeout:   8_000,
+        socketTimeout:     15_000,
     });
 
-    await transporter.sendMail({
-        from: `"${FROM_NAME || 'MediCare'}" <${FROM_EMAIL || SMTP_USER}>`,
-        to,
-        subject,
-        html,
-    });
+    try {
+        const info = await transporter.sendMail({
+            from: `"${FROM_NAME || 'MediCare'}" <${FROM_EMAIL || SMTP_USER}>`,
+            to,
+            subject,
+            html,
+        });
+        console.log(`[EMAIL] Sent successfully. MessageId: ${info.messageId}`);
+    } catch (err: any) {
+        // Log the full error so it appears in Render/Railway logs
+        console.error('[EMAIL] Send failed:', err.message);
+        console.error('[EMAIL] SMTP config — host:', SMTP_HOST, 'port:', port, 'user:', SMTP_USER);
+        throw err; // Re-throw so the controller can return a proper 500
+    }
 };
