@@ -22,7 +22,8 @@
       "Bash(bash skills/git-pushing/scripts/smart_commit.sh \"feat: add Google OAuth and phone OTP to signup page, update env examples\")",
       "Bash(bash /c/Users/alame/.claude/skills/git-pushing/scripts/smart_commit.sh \"feat: add Google OAuth and phone OTP to signup page, update env examples\")",
       "Bash(bash /c/Users/alame/.claude/skills/git-pushing/scripts/smart_commit.sh \"feat: replace phone OTP with email OTP login \\(free, uses Resend\\)\")",
-      "Bash(bash /c/Users/alame/.claude/skills/git-pushing/scripts/smart_commit.sh \"fix: enforce hospital scope in updateUserRole for admin users\")"
+      "Bash(bash /c/Users/alame/.claude/skills/git-pushing/scripts/smart_commit.sh \"fix: enforce hospital scope in updateUserRole for admin users\")",
+      "Bash(bash /c/Users/alame/.claude/skills/git-pushing/scripts/smart_commit.sh \"fix: hide Edit/Delete buttons for admin and super_admin rows in UserList\")"
     ]
   }
 }

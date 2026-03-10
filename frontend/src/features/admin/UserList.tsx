@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSelector } from 'react-redux';
 import { useGetUsersQuery, useDeleteUserMutation } from '../users/usersApi';
 import { UserPlus, Trash2, Shield } from 'lucide-react';
 import Table from '../../components/ui/Table';
@@ -6,9 +7,11 @@ import UserModal from './UserModal';
 import CreateUserModal from './CreateUserModal';
 import ErrorBoundary from '../../components/ui/ErrorBoundary';
 import type { User } from '../../types';
+import type { RootState } from '../../app/store';
 
 export default function UserList() {
     const { data: users, isLoading } = useGetUsersQuery();
+    const currentUser = useSelector((state: RootState) => state.auth.user);
     const [deleteUser] = useDeleteUserMutation();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [userToEdit, setUserToEdit] = useState<User | null>(null);
@@ -115,29 +118,38 @@ export default function UserList() {
         {
             key: 'actions',
             header: 'Actions',
-            render: (user: User) => (
-                <div className="flex space-x-2">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleEdit(user);
-                        }}
-                        className="text-primary-600 hover:text-primary-900 transition-colors"
-                    >
-                        Edit
-                    </button>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete((user.id || user._id) as string);
-                        }}
-                        className="text-red-600 hover:text-red-900 transition-colors"
-                        disabled={user.role === 'admin' || user.role === 'super_admin'}
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </button>
-                </div>
-            ),
+            render: (user: User) => {
+                const isAdminRow = user.role === 'admin' || user.role === 'super_admin';
+                const isSelf = (user.id || user._id) === (currentUser?.id || currentUser?._id);
+                const canEdit = !isAdminRow && !isSelf;
+                return (
+                    <div className="flex space-x-2">
+                        {canEdit ? (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEdit(user);
+                                }}
+                                className="text-primary-600 hover:text-primary-900 transition-colors"
+                            >
+                                Edit
+                            </button>
+                        ) : (
+                            <span className="text-gray-300 text-sm select-none">—</span>
+                        )}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete((user.id || user._id) as string);
+                            }}
+                            className="text-red-600 hover:text-red-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            disabled={isAdminRow || isSelf}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </button>
+                    </div>
+                );
+            },
         },
     ];
 
