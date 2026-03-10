@@ -10,6 +10,7 @@ import { sendEmail } from '../utils/email';
 import crypto from 'crypto';
 import speakeasy from 'speakeasy';
 import qrcode from 'qrcode';
+import axios from 'axios';
 
 // Startup guard — fail fast if JWT_SECRET is missing
 if (!process.env.JWT_SECRET) {
@@ -528,15 +529,15 @@ export const googleAuth = async (req: AuthRequest, res: Response) => {
         if (!idToken) return res.status(400).json({ success: false, message: 'Google token required' });
 
         // Fetch user info from Google using the access token
-        const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { Authorization: `Bearer ${idToken}` },
-        });
-
-        if (!googleRes.ok) {
+        let payload;
+        try {
+            const googleRes = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${idToken}` },
+            });
+            payload = googleRes.data as { sub: string; email: string; name: string; email_verified: boolean };
+        } catch (error: any) {
             return res.status(400).json({ success: false, message: 'Invalid Google token' });
         }
-
-        const payload = await googleRes.json() as { sub: string; email: string; name: string; email_verified: boolean };
         if (!payload.email) {
             return res.status(400).json({ success: false, message: 'Could not retrieve email from Google' });
         }
