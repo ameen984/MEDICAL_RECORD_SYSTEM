@@ -130,22 +130,31 @@ export const updateUserRole = async (req: AuthRequest, res: Response) => {
     try {
         const { role } = req.body;
 
-        const user = await User.findByIdAndUpdate(
-            req.params.id,
-            { role },
-            { new: true, runValidators: true }
-        );
-
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found',
-            });
+        const targetUser = await User.findById(req.params.id);
+        if (!targetUser) {
+            return res.status(404).json({ success: false, message: 'User not found' });
         }
+
+        // Hospital admins can only change roles of users in their hospital
+        if (req.user?.role === 'admin') {
+            const adminHospitalIds = req.user.hospitalIds?.map(id => id.toString()) || [];
+            const targetHospIds = targetUser.hospitalIds?.map(id => id.toString()) || [];
+            const overlaps = targetHospIds.some(id => adminHospitalIds.includes(id));
+
+            if (!overlaps) {
+                return res.status(403).json({ success: false, message: 'You cannot modify users outside of your assigned facilities.' });
+            }
+            if (role === 'admin' || role === 'super_admin') {
+                return res.status(403).json({ success: false, message: 'Facility Admins cannot promote users to admin.' });
+            }
+        }
+
+        targetUser.role = role;
+        await targetUser.save();
 
         res.status(200).json({
             success: true,
-            data: user,
+            data: targetUser,
         });
     } catch (error: any) {
         res.status(500).json({
