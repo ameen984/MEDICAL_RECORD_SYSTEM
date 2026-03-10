@@ -9,7 +9,7 @@ router.use(protect);
 router.get('/', authorize('doctor', 'admin'), getPatients);
 router.get('/:id', getPatientById);
 router.get('/:id/history', getPatientHistory);
-router.get('/:id/export', authorize('doctor', 'admin', 'super_admin'), exportPatientHistory);
+router.get('/:id/export', authorize('doctor', 'admin', 'super_admin', 'patient'), exportPatientHistory);
 router.put('/:id', updatePatient);
 
 export default router;

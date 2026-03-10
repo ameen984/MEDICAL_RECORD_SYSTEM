@@ -14,7 +14,8 @@
       "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"fix: use SMTP port 465 for production \\(Render blocks 587\\)\")",
       "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"fix: add TLS rejectUnauthorized, detailed SMTP error logging\")",
       "Bash(npm install resend --save)",
-      "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"fix: add Resend email provider to fix Gmail SMTP blocking on cloud hosts\")"
+      "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"fix: add Resend email provider to fix Gmail SMTP blocking on cloud hosts\")",
+      "Bash(bash \"C:\\\\Users\\\\alame\\\\.claude\\\\skills\\\\git-pushing\\\\scripts\\\\smart_commit.sh\" \"fix: allow patient role to export their own PDF history\")"
     ]
   }
 }

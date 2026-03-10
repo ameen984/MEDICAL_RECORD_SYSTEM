@@ -8,13 +8,19 @@ import {
   Upload,
   FolderOpen,
   Building2,
-  Activity
+  Activity,
+  X
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../app/store.ts';
 import clsx from 'clsx';
 
-const Sidebar = () => {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const { user } = useSelector((state: RootState) => state.auth);
 
   if (!user) return null;
@@ -65,9 +71,18 @@ const Sidebar = () => {
   const links = getLinksByRole();
 
   return (
-    <div className="h-screen w-64 bg-white border-r border-gray-200 flex flex-col fixed inset-y-0 z-10 font-sans">
-      <div className="h-16 flex items-center justify-center border-b border-gray-200">
+    <div className={clsx(
+      "h-screen w-64 bg-white border-r border-gray-200 flex flex-col fixed inset-y-0 z-30 font-sans transition-transform duration-300 transform",
+      isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+    )}>
+      <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200">
         <h1 className="text-xl font-bold text-primary-600 tracking-tight">MediCare</h1>
+        <button 
+          onClick={onClose}
+          className="md:hidden text-gray-400 hover:text-gray-500"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {links.map((link) => (

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { LogOut, Bell, Search, Building2, ChevronDown, CheckCircle2, ShieldAlert, FileText, Settings2 } from 'lucide-react';
+import { Menu, LogOut, Bell, Search, Building2, ChevronDown, CheckCircle2, ShieldAlert, FileText, Settings2 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout, setActiveHospital } from '../../features/auth/authSlice';
 import { useNavigate } from 'react-router-dom';
@@ -12,7 +12,11 @@ import type { RootState } from '../../app/store';
 import type { Hospital } from '../../types';
 import { useSocket } from '../../hooks/useSocket';
 
-const Navbar = () => {
+interface NavbarProps {
+  onMenuClick?: () => void;
+}
+
+const Navbar = ({ onMenuClick }: NavbarProps) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user, activeHospitalId } = useSelector((state: RootState) => state.auth);
@@ -92,10 +96,16 @@ const Navbar = () => {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 pl-72 sticky top-0 z-10 w-full">
-        {/* Search Placeholder */}
-        <div className="flex-1 max-w-lg">
-            <div className="relative">
+    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 md:pl-72 sticky top-0 z-10 w-full">
+        {/* Mobile Menu & Search Placeholder */}
+        <div className="flex flex-1 items-center gap-4 max-w-lg">
+            <button 
+              onClick={onMenuClick}
+              className="p-2 -ml-2 text-gray-400 hover:text-gray-500 md:hidden"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+            <div className="relative w-full">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Search className="h-5 w-5 text-gray-400" />
                 </div>
