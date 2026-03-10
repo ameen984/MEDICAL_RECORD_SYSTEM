@@ -65,16 +65,16 @@ export default function PatientDashboard() {
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary-50 rounded-full -mr-20 -mt-20 opacity-50 blur-3xl"></div>
                 <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-50 rounded-full -ml-10 -mb-10 opacity-30 blur-2xl"></div>
                 
-                <div className="relative z-10 p-8 md:p-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div>
-                        <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+                <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
+                    <div className="z-10">
+                        <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
                             Welcome back, <span className="text-primary-600">{user?.name}</span>
                         </h2>
-                        <p className="mt-2 text-lg text-gray-500 max-w-md">
+                        <p className="mt-2 text-sm sm:text-lg text-gray-500 max-w-md">
                             It's great to see you. Here's a snapshot of your health journey today.
                         </p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 self-end sm:self-auto z-10">
                         <div className="hidden sm:flex flex-col items-end mr-2">
                              <p className="text-sm font-semibold text-gray-900 leading-none">{new Date().toLocaleDateString('en-US', { weekday: 'long' })}</p>
                              <p className="text-xs text-gray-500 mt-1">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
