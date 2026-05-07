@@ -525,22 +525,15 @@ export const logoutUser = async (req: AuthRequest, res: Response) => {
 // @access  Public
 export const googleAuth = async (req: AuthRequest, res: Response) => {
     try {
-        // Accept either 'credential' (id_token from GoogleLogin) or legacy 'idToken' (access_token)
-        const { credential, idToken } = req.body;
-        const googleToken = credential || idToken;
-        if (!googleToken) return res.status(400).json({ success: false, message: 'Google token required' });
+        const { idToken } = req.body;
+        if (!idToken) return res.status(400).json({ success: false, message: 'Google token required' });
 
-        // Verify token and fetch user info from Google
+        // Fetch user info from Google using the access token
         let payload;
         try {
-            let googleRes;
-            if (credential) {
-                googleRes = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${googleToken}`);
-            } else {
-                googleRes = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
-                    headers: { Authorization: `Bearer ${googleToken}` },
-                });
-            }
+            const googleRes = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${idToken}` },
+            });
             payload = googleRes.data as { sub: string; email: string; name: string; email_verified: boolean };
         } catch (error: any) {
             return res.status(400).json({ success: false, message: 'Invalid Google token' });
