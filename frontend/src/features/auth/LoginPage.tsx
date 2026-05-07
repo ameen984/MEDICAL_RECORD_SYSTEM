@@ -3,7 +3,6 @@ import { useLoginMutation, useGoogleAuthMutation, useSendEmailOtpMutation, useVe
 import { useDispatch, useSelector } from 'react-redux';
 import { setCredentials } from './authSlice';
 import { useNavigate } from 'react-router-dom';
-import { useGoogleLogin } from '@react-oauth/google';
 import type { RootState } from '../../app/store.ts';
 import { Lock, Mail, Activity, ShieldAlert, MessageSquare } from 'lucide-react';
 import Loader from '../../components/Loader.tsx';
@@ -22,7 +21,7 @@ const LoginPage = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [login, { isLoading }] = useLoginMutation();
-  const [googleAuth, { isLoading: isGoogleLoading }] = useGoogleAuthMutation();
+  const [googleAuth] = useGoogleAuthMutation();
   const [sendOtp, { isLoading: isSendingOtp }] = useSendEmailOtpMutation();
   const [verifyOtp, { isLoading: isVerifyingOtp }] = useVerifyEmailOtpMutation();
 
@@ -43,21 +42,29 @@ const LoginPage = () => {
     } catch (err: any) { setErrorMsg(err?.data?.message || 'Invalid credentials. Please try again.'); }
   };
 
-  const handleGoogleLogin = useGoogleLogin({
-    flow: 'implicit',
-    scope: 'email profile openid',
-    onSuccess: async (tokenResponse) => {
-      clearError();
-      try {
-        const data = await googleAuth(tokenResponse.access_token).unwrap();
-        dispatch(setCredentials(data)); navigate('/dashboard');
-      } catch (err: any) {
-        setErrorMsg(err?.data?.message || 'Google sign-in failed. Please try again.');
-      }
-    },
-    onError: (err) => setErrorMsg(err?.error_description || err?.error || 'Google sign-in failed'),
-    onNonOAuthError: (err) => setErrorMsg(err?.type === 'popup_closed' ? 'Google sign-in popup was closed.' : 'Google sign-in failed. Please try again.'),
-  });
+  const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
+
+  // Process token returned from Google redirect
+  useEffect(() => {
+    const token = sessionStorage.getItem('_gtoken');
+    if (!token) return;
+    sessionStorage.removeItem('_gtoken');
+    setIsGoogleLoading(true);
+    googleAuth(token).unwrap()
+      .then(data => { dispatch(setCredentials(data)); navigate('/dashboard'); })
+      .catch((err: any) => setErrorMsg(err?.data?.message || 'Google sign-in failed. Please try again.'))
+      .finally(() => setIsGoogleLoading(false));
+  }, []);
+
+  const handleGoogleLogin = () => {
+    const params = new URLSearchParams({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+      redirect_uri: window.location.origin,
+      response_type: 'token',
+      scope: 'email profile openid',
+    });
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+  };
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault(); clearError();
