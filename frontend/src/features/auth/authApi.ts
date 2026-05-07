@@ -36,7 +36,7 @@ export const authApi = apiSlice.injectEndpoints({
             query: () => ({ url: '/auth/logout', method: 'POST' }),
         }),
         googleAuth: builder.mutation({
-            query: (credential: string) => ({ url: '/auth/google', method: 'POST', body: { credential } }),
+            query: (idToken: string) => ({ url: '/auth/google', method: 'POST', body: { idToken } }),
             transformResponse: (res: any) => res.data,
         }),
         sendPhoneOtp: builder.mutation({
