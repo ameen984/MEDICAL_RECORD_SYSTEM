@@ -5,7 +5,7 @@ import { setCredentials } from './authSlice';
 import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import type { RootState } from '../../app/store.ts';
-import { Lock, Mail, User as UserIcon, Activity, ShieldAlert, MessageSquare } from 'lucide-react';
+import { Lock, Mail, Phone, User as UserIcon, Activity, ShieldAlert, MessageSquare } from 'lucide-react';
 import Loader from '../../components/Loader.tsx';
 
 type Tab = 'password' | 'email-otp';
@@ -54,14 +54,19 @@ const SignupPage = () => {
   };
 
   const handleGoogleLogin = useGoogleLogin({
+    flow: 'implicit',
+    scope: 'email profile openid',
     onSuccess: async (tokenResponse) => {
       clearError();
       try {
         const data = await googleAuth(tokenResponse.access_token).unwrap();
         dispatch(setCredentials(data)); navigate('/dashboard');
-      } catch (err: any) { setErrorMsg(err?.data?.message || 'Google sign-up failed'); }
+      } catch (err: any) {
+        setErrorMsg(err?.data?.message || err?.error || 'Google sign-up failed. Please try again.');
+      }
     },
-    onError: () => setErrorMsg('Google sign-up was cancelled or failed'),
+    onError: (err) => setErrorMsg(err?.error_description || err?.error || 'Google sign-up was cancelled or failed'),
+    onNonOAuthError: (err) => setErrorMsg(err?.type === 'popup_closed' ? 'Google sign-up popup was closed.' : 'Google sign-up failed. Please try again.'),
   });
 
   const handleSendOtp = async (e: React.FormEvent) => {

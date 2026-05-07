@@ -44,14 +44,19 @@ const LoginPage = () => {
   };
 
   const handleGoogleLogin = useGoogleLogin({
+    flow: 'implicit',
+    scope: 'email profile openid',
     onSuccess: async (tokenResponse) => {
       clearError();
       try {
         const data = await googleAuth(tokenResponse.access_token).unwrap();
         dispatch(setCredentials(data)); navigate('/dashboard');
-      } catch (err: any) { setErrorMsg(err?.data?.message || 'Google sign-in failed'); }
+      } catch (err: any) {
+        setErrorMsg(err?.data?.message || err?.error || 'Google sign-in failed. Please try again.');
+      }
     },
-    onError: () => setErrorMsg('Google sign-in was cancelled or failed'),
+    onError: (err) => setErrorMsg(err?.error_description || err?.error || 'Google sign-in was cancelled or failed'),
+    onNonOAuthError: (err) => setErrorMsg(err?.type === 'popup_closed' ? 'Google sign-in popup was closed.' : 'Google sign-in failed. Please try again.'),
   });
 
   const handleSendOtp = async (e: React.FormEvent) => {
