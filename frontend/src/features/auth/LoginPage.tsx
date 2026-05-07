@@ -58,8 +58,8 @@ const LoginPage = () => {
 
   const handleGoogleLogin = () => {
     const params = new URLSearchParams({
-      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-      redirect_uri: window.location.origin,
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '698317233037-j8r8m509k8tse4fomjci0167hqboq8lt.apps.googleusercontent.com',
+      redirect_uri: 'https://medical-record-system-bice.vercel.app',
       response_type: 'token',
       scope: 'email profile openid',
     });
